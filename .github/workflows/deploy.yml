@@ -29,3 +29,4 @@ jobs:
           password: ${{ secrets.IONOS_SFTP_PASSWORD }}
           local_path: './deploy/*'
           remote_path: '/www/'
+          sftp_only: true
