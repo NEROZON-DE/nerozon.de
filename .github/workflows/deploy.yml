@@ -52,10 +52,52 @@ jobs:
 
 
       # ============================================================
-      # WWW
+      # WWW TOKEN
       # ============================================================
 
-      - name: Prepare WWW
+      - name: Create WWW deployment token
+        id: token_www
+        run: |
+          TIMESTAMP=$(date +%s%3N)
+          RANDOM_TOKEN=$(openssl rand -hex 16)
+          TOKEN="dpl-${TIMESTAMP}-${RANDOM_TOKEN}"
+
+          mkdir -p trigger-www
+          touch "trigger-www/${TOKEN}"
+
+          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload WWW deployment token
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          local_path: './trigger-www/*'
+          remote_path: '/'
+          sftp_only: true
+
+
+      # ============================================================
+      # WWW PREPARE
+      # ============================================================
+
+      - name: Prepare WWW staging
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
+            --request POST \
+            "https://deploy.nerozon.de/prepare-www/${{ steps.token_www.outputs.token }}"
+
+
+      # ============================================================
+      # WWW UPLOAD
+      # ============================================================
+
+      - name: Prepare WWW package
         run: |
           mkdir -p package-www
           cp -R www/. package-www/
@@ -73,27 +115,10 @@ jobs:
           remote_path: '/www-deploy/'
           sftp_only: true
 
-      - name: Create WWW deployment token
-        id: token_www
-        run: |
-          TIMESTAMP=$(date +%s%3N)
-          RANDOM_TOKEN=$(openssl rand -hex 16)
-          TOKEN="dpl-www-${TIMESTAMP}-${RANDOM_TOKEN}"
 
-          mkdir -p trigger-www
-          touch "trigger-www/${TOKEN}"
-
-          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
-
-      - name: Upload WWW deployment token
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
-        with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
-          server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
-          local_path: './trigger-www/*'
-          remote_path: '/'
-          sftp_only: true
+      # ============================================================
+      # WWW ACTIVATE
+      # ============================================================
 
       - name: Activate WWW
         run: |
@@ -103,7 +128,12 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/${{ steps.token_www.outputs.token }}"
+            "https://deploy.nerozon.de/deploy-www/${{ steps.token_www.outputs.token }}"
+
+
+      # ============================================================
+      # WWW SMOKE TEST
+      # ============================================================
 
       - name: Smoke test WWW
         run: |
@@ -119,7 +149,7 @@ jobs:
       # ============================================================
       # API
       #
-      # API wird erst deployed, sobald mindestens eine Datei
+      # API wird nur deployed, wenn mindestens eine Datei
       # im lokalen api-Verzeichnis vorhanden ist.
       # ============================================================
 
@@ -132,7 +162,57 @@ jobs:
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Prepare API
+
+      # ============================================================
+      # API TOKEN
+      # ============================================================
+
+      - name: Create API deployment token
+        if: steps.check_api.outputs.deploy == 'true'
+        id: token_api
+        run: |
+          TIMESTAMP=$(date +%s%3N)
+          RANDOM_TOKEN=$(openssl rand -hex 16)
+          TOKEN="dpl-${TIMESTAMP}-${RANDOM_TOKEN}"
+
+          mkdir -p trigger-api
+          touch "trigger-api/${TOKEN}"
+
+          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload API deployment token
+        if: steps.check_api.outputs.deploy == 'true'
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          local_path: './trigger-api/*'
+          remote_path: '/'
+          sftp_only: true
+
+
+      # ============================================================
+      # API PREPARE
+      # ============================================================
+
+      - name: Prepare API staging
+        if: steps.check_api.outputs.deploy == 'true'
+        run: |
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --max-time 30 \
+            --request POST \
+            "https://deploy.nerozon.de/prepare-api/${{ steps.token_api.outputs.token }}"
+
+
+      # ============================================================
+      # API UPLOAD
+      # ============================================================
+
+      - name: Prepare API package
         if: steps.check_api.outputs.deploy == 'true'
         run: |
           mkdir -p package-api
@@ -152,29 +232,10 @@ jobs:
           remote_path: '/api-deploy/'
           sftp_only: true
 
-      - name: Create API deployment token
-        if: steps.check_api.outputs.deploy == 'true'
-        id: token_api
-        run: |
-          TIMESTAMP=$(date +%s%3N)
-          RANDOM_TOKEN=$(openssl rand -hex 16)
-          TOKEN="dpl-api-${TIMESTAMP}-${RANDOM_TOKEN}"
 
-          mkdir -p trigger-api
-          touch "trigger-api/${TOKEN}"
-
-          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
-
-      - name: Upload API deployment token
-        if: steps.check_api.outputs.deploy == 'true'
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
-        with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
-          server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
-          local_path: './trigger-api/*'
-          remote_path: '/'
-          sftp_only: true
+      # ============================================================
+      # API ACTIVATE
+      # ============================================================
 
       - name: Activate API
         if: steps.check_api.outputs.deploy == 'true'
@@ -185,4 +246,4 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/${{ steps.token_api.outputs.token }}"
+            "https://deploy.nerozon.de/deploy-api/${{ steps.token_api.outputs.token }}"
