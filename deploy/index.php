@@ -7,7 +7,13 @@ declare(strict_types=1);
  *
  * deploy.nerozon.de -> /nerozon.de/deploy
  *
- * Ungültige Aufrufe liefern ausschließlich HTTP 404.
+ * Erlaubte Operationen:
+ * - prepare-www
+ * - deploy-www
+ * - prepare-api
+ * - deploy-api
+ *
+ * Ungültige Aufrufe liefern nur HTTP 404.
  */
 
 http_response_code(404);
@@ -21,40 +27,45 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 $base = dirname(__DIR__);
 
 /*
- * Erwartete URL:
+ * Erwartete URLs:
  *
- * /dpl-www-<timestamp>-<random>
- * /dpl-api-<timestamp>-<random>
+ * /prepare-www/dpl-<timestamp>-<random>
+ * /deploy-www/dpl-<timestamp>-<random>
+ * /prepare-api/dpl-<timestamp>-<random>
+ * /deploy-api/dpl-<timestamp>-<random>
  */
 
-$token = trim(
+$path = trim(
     (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH),
     '/'
 );
 
 if (!preg_match(
-    '/^dpl-(www|api)-([0-9]{13})-([a-f0-9]{32})$/',
-    $token,
+    '/^(prepare|deploy)-(www|api)\/(dpl-[0-9]{13}-[a-f0-9]{32})$/',
+    $path,
     $matches
 )) {
     exit;
 }
 
-$component = $matches[1];
+$operation = $matches[1];
+$component = $matches[2];
+$token     = $matches[3];
 
 $tokenFile = $base . '/' . $token;
 
+
 /*
- * Token muss von GitHub vorher per SFTP
- * ins Root-Verzeichnis gelegt worden sein.
+ * Token muss existieren.
  */
 
 if (!is_file($tokenFile)) {
     exit;
 }
 
+
 /*
- * Maximal 20 Minuten gültig.
+ * Token maximal 20 Minuten gültig.
  */
 
 $age = time() - filemtime($tokenFile);
@@ -64,20 +75,9 @@ if ($age < 0 || $age > 1200) {
     exit;
 }
 
-/*
- * Token sofort verbrauchen.
- */
-
-if (!unlink($tokenFile)) {
-    exit;
-}
-
 
 /*
- * Ab hier ist der Auftrag gültig.
- *
- * Es werden ausschließlich intern erzeugte,
- * fest definierte Pfade verwendet.
+ * Feste Pfade.
  */
 
 $live     = $base . '/' . $component;
@@ -86,8 +86,9 @@ $rollback = $base . '/' . $component . '-rollback';
 
 
 /*
- * Rekursives Löschen ausschließlich für
- * intern definierte Deployment-Verzeichnisse.
+ * Rekursives Löschen.
+ *
+ * Wird nur mit intern definierten Pfaden aufgerufen.
  */
 
 function removeTree(string $path): bool
@@ -107,7 +108,6 @@ function removeTree(string $path): bool
     }
 
     foreach ($items as $item) {
-
         if ($item === '.' || $item === '..') {
             continue;
         }
@@ -122,19 +122,69 @@ function removeTree(string $path): bool
 
 
 /*
- * Staging muss existieren und darf nicht leer sein.
+ * ------------------------------------------------------------
+ * PREPARE
+ * ------------------------------------------------------------
+ *
+ * - vorhandenes staging vollständig löschen
+ * - staging frisch anlegen
+ *
+ * Token bleibt bestehen und wird erst beim Deploy verbraucht.
+ */
+
+if ($operation === 'prepare') {
+
+    if (!removeTree($staging)) {
+        http_response_code(500);
+        exit("Prepare failed: staging could not be removed.\n");
+    }
+
+    if (!mkdir($staging, 0755)) {
+        http_response_code(500);
+        exit("Prepare failed: staging could not be created.\n");
+    }
+
+    http_response_code(200);
+
+    echo "NEROZON {$component} prepare successful\n";
+    exit;
+}
+
+
+/*
+ * ------------------------------------------------------------
+ * DEPLOY
+ * ------------------------------------------------------------
+ */
+
+
+/*
+ * Staging muss vorhanden und nicht leer sein.
  */
 
 if (!is_dir($staging)) {
     http_response_code(500);
-    exit("Deployment failed: {$component}-deploy missing.\n");
+    exit("Deployment failed: staging missing.\n");
 }
 
-$items = array_diff(scandir($staging) ?: [], ['.', '..']);
+$items = array_diff(
+    scandir($staging) ?: [],
+    ['.', '..']
+);
 
 if (count($items) === 0) {
     http_response_code(500);
-    exit("Deployment failed: staging directory empty.\n");
+    exit("Deployment failed: staging empty.\n");
+}
+
+
+/*
+ * Token jetzt verbrauchen.
+ */
+
+if (!unlink($tokenFile)) {
+    http_response_code(500);
+    exit("Deployment failed: token could not be consumed.\n");
 }
 
 
@@ -156,7 +206,7 @@ if (is_dir($live)) {
 
     if (!rename($live, $rollback)) {
         http_response_code(500);
-        exit("Deployment failed: {$component} -> {$component}-rollback.\n");
+        exit("Deployment failed: live -> rollback.\n");
     }
 }
 
@@ -168,7 +218,7 @@ if (is_dir($live)) {
 if (!rename($staging, $live)) {
 
     /*
-     * Falls möglich sofort alten Stand wiederherstellen.
+     * Falls möglich alten Stand sofort zurückholen.
      */
 
     if (is_dir($rollback) && !is_dir($live)) {
@@ -176,12 +226,12 @@ if (!rename($staging, $live)) {
     }
 
     http_response_code(500);
-    exit("Deployment failed: {$component}-deploy -> {$component}.\n");
+    exit("Deployment failed: staging -> live.\n");
 }
 
 
 /*
- * Erfolgreich.
+ * Erfolg.
  */
 
 http_response_code(200);
