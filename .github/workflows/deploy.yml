@@ -102,6 +102,8 @@ jobs:
           mkdir -p package-www
           cp -R www/. package-www/
 
+          find package-www -type f \( -name 'RULES.md' -o -name '*-RULES.md' \) -delete
+
           find package-www -type d -exec chmod 755 {} \;
           find package-www -type f -exec chmod 644 {} \;
 
@@ -217,6 +219,8 @@ jobs:
         run: |
           mkdir -p package-api
           cp -R api/. package-api/
+
+          find package-api -type f \( -name 'RULES.md' -o -name '*-RULES.md' \) -delete
 
           find package-api -type d -exec chmod 755 {} \;
           find package-api -type f -exec chmod 644 {} \;
