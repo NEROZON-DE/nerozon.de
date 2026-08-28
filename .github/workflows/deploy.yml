@@ -90,7 +90,7 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/prepare-www/${{ steps.token_www.outputs.token }}"
+            "https://deploy.nerozon.de/index.php?action=prepare&component=www&token=${{ steps.token_www.outputs.token }}"
 
 
       # ============================================================
@@ -128,7 +128,7 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/deploy-www/${{ steps.token_www.outputs.token }}"
+            "https://deploy.nerozon.de/index.php?action=deploy&component=www&token=${{ steps.token_www.outputs.token }}"
 
 
       # ============================================================
@@ -205,7 +205,7 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/prepare-api/${{ steps.token_api.outputs.token }}"
+            "https://deploy.nerozon.de/index.php?action=prepare&component=api&token=${{ steps.token_api.outputs.token }}"
 
 
       # ============================================================
@@ -246,4 +246,4 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/deploy-api/${{ steps.token_api.outputs.token }}"
+            "https://deploy.nerozon.de/index.php?action=deploy&component=api&token=${{ steps.token_api.outputs.token }}"

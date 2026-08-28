@@ -7,11 +7,14 @@ declare(strict_types=1);
  *
  * deploy.nerozon.de -> /nerozon.de/deploy
  *
- * Erlaubte Operationen:
- * - prepare-www
- * - deploy-www
- * - prepare-api
- * - deploy-api
+ * Aufruf:
+ *
+ * POST /index.php?action=prepare&component=www&token=...
+ * POST /index.php?action=deploy&component=www&token=...
+ *
+ * component:
+ * - www
+ * - api
  *
  * Ungültige Aufrufe liefern nur HTTP 404.
  */
@@ -26,31 +29,40 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 $base = dirname(__DIR__);
 
+$action    = $_GET['action'] ?? '';
+$component = $_GET['component'] ?? '';
+$token     = $_GET['token'] ?? '';
+
+
 /*
- * Erwartete URLs:
- *
- * /prepare-www/dpl-<timestamp>-<random>
- * /deploy-www/dpl-<timestamp>-<random>
- * /prepare-api/dpl-<timestamp>-<random>
- * /deploy-api/dpl-<timestamp>-<random>
+ * Nur exakt erlaubte Aktionen.
  */
 
-$path = trim(
-    (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH),
-    '/'
-);
+if (!in_array($action, ['prepare', 'deploy'], true)) {
+    exit;
+}
+
+
+/*
+ * Nur exakt erlaubte Komponenten.
+ */
+
+if (!in_array($component, ['www', 'api'], true)) {
+    exit;
+}
+
+
+/*
+ * Tokenformat prüfen.
+ */
 
 if (!preg_match(
-    '/^(prepare|deploy)-(www|api)\/(dpl-[0-9]{13}-[a-f0-9]{32})$/',
-    $path,
-    $matches
+    '/^dpl-[0-9]{13}-[a-f0-9]{32}$/',
+    $token
 )) {
     exit;
 }
 
-$operation = $matches[1];
-$component = $matches[2];
-$token     = $matches[3];
 
 $tokenFile = $base . '/' . $token;
 
@@ -77,7 +89,7 @@ if ($age < 0 || $age > 1200) {
 
 
 /*
- * Feste Pfade.
+ * Fest definierte Verzeichnisse.
  */
 
 $live     = $base . '/' . $component;
@@ -88,7 +100,8 @@ $rollback = $base . '/' . $component . '-rollback';
 /*
  * Rekursives Löschen.
  *
- * Wird nur mit intern definierten Pfaden aufgerufen.
+ * Wird ausschließlich mit intern erzeugten
+ * Pfaden aufgerufen.
  */
 
 function removeTree(string $path): bool
@@ -108,6 +121,7 @@ function removeTree(string $path): bool
     }
 
     foreach ($items as $item) {
+
         if ($item === '.' || $item === '..') {
             continue;
         }
@@ -122,17 +136,17 @@ function removeTree(string $path): bool
 
 
 /*
- * ------------------------------------------------------------
+ * ============================================================
  * PREPARE
- * ------------------------------------------------------------
+ * ============================================================
  *
- * - vorhandenes staging vollständig löschen
- * - staging frisch anlegen
+ * - vorhandenes staging löschen
+ * - staging neu anlegen
  *
- * Token bleibt bestehen und wird erst beim Deploy verbraucht.
+ * Token bleibt bestehen.
  */
 
-if ($operation === 'prepare') {
+if ($action === 'prepare') {
 
     if (!removeTree($staging)) {
         http_response_code(500);
@@ -152,20 +166,25 @@ if ($operation === 'prepare') {
 
 
 /*
- * ------------------------------------------------------------
+ * ============================================================
  * DEPLOY
- * ------------------------------------------------------------
+ * ============================================================
  */
 
 
 /*
- * Staging muss vorhanden und nicht leer sein.
+ * Staging muss existieren.
  */
 
 if (!is_dir($staging)) {
     http_response_code(500);
     exit("Deployment failed: staging missing.\n");
 }
+
+
+/*
+ * Staging darf nicht leer sein.
+ */
 
 $items = array_diff(
     scandir($staging) ?: [],
@@ -179,7 +198,7 @@ if (count($items) === 0) {
 
 
 /*
- * Token jetzt verbrauchen.
+ * Token erst jetzt verbrauchen.
  */
 
 if (!unlink($tokenFile)) {
@@ -218,7 +237,7 @@ if (is_dir($live)) {
 if (!rename($staging, $live)) {
 
     /*
-     * Falls möglich alten Stand sofort zurückholen.
+     * Falls möglich sofort alten Stand zurückholen.
      */
 
     if (is_dir($rollback) && !is_dir($live)) {
