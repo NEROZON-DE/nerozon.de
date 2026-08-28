@@ -16,10 +16,14 @@ jobs:
       - name: Prepare deployment
         run: |
           mkdir deploy
-          cp index.html deploy/
-          cp favicon.svg deploy/
-          cp nerozon-logo.png deploy/
-          chmod 644 deploy/*
+          rsync -av \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='deploy/' \
+            ./ deploy/
+
+          find deploy -type d -exec chmod 755 {} \;
+          find deploy -type f -exec chmod 644 {} \;
 
       - name: Deploy to IONOS
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6

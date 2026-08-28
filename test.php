@@ -9,3 +9,4 @@ echo "PHP läuft.\n";
 echo "PHP-Version: " . PHP_VERSION . "\n";
 echo "__DIR__: " . __DIR__ . "\n";
 echo "Parent: " . dirname(__DIR__) . "\n";
+?>
