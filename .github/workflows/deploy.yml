@@ -1,0 +1,31 @@
+name: Deploy nerozon.de
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare deployment
+        run: |
+          mkdir deploy
+          cp index.html deploy/
+          cp favicon.svg deploy/
+          cp nerozon-logo.png deploy/
+          chmod 644 deploy/*
+
+      - name: Deploy to IONOS
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          local_path: './deploy/*'
+          remote_path: '/www/'
