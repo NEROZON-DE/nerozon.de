@@ -56,7 +56,11 @@ Q-025
 Anonymität bzw. Personenbezug des Fragebogens muss eine bewusste fachliche Eigenschaft sein und darf nicht zufällig aus der technischen Implementierung entstehen.
 
 Q-026
-Technische Telemetrie und fachliche Fragebogenantworten werden logisch getrennt behandelt.
+Technische Telemetrie und fachliche Fragebogenantworten werden als getrennte Datenarten behandelt, dürfen aber über definierte technische Referenzen miteinander verknüpft werden, wenn dies für Missbrauchserkennung, Qualitätssicherung oder Betrieb erforderlich ist.
+
+Q-027
+Technische Identifikatoren wie IP-Adresse oder vergleichbare Metadaten dürfen nicht Bestandteil des fachlichen Antwort-Payloads sein.
+Sie werden separat gespeichert und über eine Submission- oder Event-ID referenziert.
 
 ## Auswertung
 
