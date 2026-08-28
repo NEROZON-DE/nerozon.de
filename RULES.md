@@ -43,6 +43,10 @@ ROOT-014
 Regeln dürfen geändert werden.
 Eine Regeländerung ist jedoch eine bewusste Architekturentscheidung und keine implizite Folge einer Implementierung.
 
+ROOT-015
+Verbindliche lokale Regeldateien müssen `RULES.md` oder `*-RULES.md` heißen.
+Dateien dieses Namensmusters sind Repository-Metadaten und dürfen nicht Bestandteil produktiver Deployment-Artefakte sein.
+
 ## Betrieb und Deployment
 
 ROOT-020
