@@ -1,8 +1,9 @@
-# NEROZON Background Assets
+# NEROZON Background Assets – Specification
 
 Status: DRAFT
+Type: Design specification
 
-Diese Datei beschreibt die Hintergrundbilder für `/www/q`, ihren Einsatzzweck und ihre feste Zuordnung.
+Diese Spezifikation beschreibt die Hintergrundbilder für `/www/q`, ihren Einsatzzweck und ihre feste Zuordnung.
 Die produktiv verwendeten Assets liegen zentral unter `/www/assets/backgrounds/` und werden von `/www/q` nur referenziert.
 
 Die aktuelle V2 verwendet SVG-Hintergründe. Dadurch bleiben die Flächen scharf, leichtgewichtig und ohne zusätzliche Raster-Artefakte skalierbar. Die visuelle Richtung orientiert sich an den zuvor erzeugten NEROZON-Hintergrundstudien: dunkler Datenraum, Partikel-/Netzstrukturen, kontrollierte Cyan-/Türkis-Akzente und viel negative Fläche.
@@ -39,7 +40,7 @@ Einsatz: Paket 4 „Wo entsteht echter Wert?“.
 Zweck: Von Kontrolle zu Nutzen; steigende Bewegung und wirtschaftlicher Wert.
 Charakter: Blau-Türkis mit zurückhaltendem Grünanteil und klarer Aufwärtsbewegung.
 
-## Einbindungsregeln
+## Einbindungsanforderungen
 
 BG-001
 Hintergrundbilder unterstützen die Kapitelreise und werden nicht beliebig zwischen Kapiteln ausgetauscht.
