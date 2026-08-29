@@ -1,17 +1,19 @@
-# NEROZON Repository Architecture
+# nerozon.de Repository Architecture
 
 Status: DRAFT
 
 ## Dokumentationsgrenze
 
 Dieses Repository dokumentiert **was** die Software ist und **wie** sie gebaut und betrieben wird.
-Fachliche Motivation, Markt-, Produkt- und Unternehmenskontext sowie das **warum** werden in der NEROZON-Wissensbasis in Google Drive gepflegt.
+Fachliche Motivation, Markt-, Produkt- und Unternehmenskontext sowie das **warum** können in der NEROZON-Wissensbasis in Google Drive gepflegt werden.
+
+NEROZON-weite Engineering-Regeln bleiben die übergeordnete technische Grundlinie. Dieses Repository enthält die produkt- und projektspezifische technische Wahrheit für `nerozon.de`.
 
 ## Source of Truth
 
-- Das Repository ist die führende Quelle für den reproduzierbaren Anwendungsstand.
+- Das Repository ist die führende Quelle für den reproduzierbaren Anwendungsstand von `nerozon.de`.
 - `main` repräsentiert den gewünschten produktiven Stand.
-- Entwicklungsarbeit erfolgt auf separaten Branches und wird kontrolliert nach `main` übernommen.
+- Entwicklungsarbeit erfolgt auf dafür definierten Branches und wird kontrolliert in verbindliche Stände übernommen.
 - Funktionale Bereiche bleiben möglichst getrennt.
 - Gemeinsame Komponenten entstehen nur bei tatsächlich gemeinsamer Verantwortung oder Wiederverwendung.
 
@@ -35,6 +37,9 @@ Abstraktion ohne konkreten Nutzen ist zu vermeiden.
 
 ## Dokumentationshierarchie
 
+Die NEROZON-weiten Engineering-Regeln bilden die übergeordnete Basis.
+Die Root-`RULES.md` definiert die projektweiten Meta-Regeln von `nerozon.de`.
 `/docs/` enthält projektweite technische Dokumentation und Entscheidungen.
-Lokale `RULES.md` liegen nah am Code und enthalten ausschließlich bereichsspezifische Ergänzungen oder Einschränkungen.
-Lokale Regeln dürfen globale Regeln konkretisieren; bewusste Abweichungen müssen ausdrücklich dokumentiert werden.
+Lokale `RULES.md` und `*-RULES.md` liegen nah am betroffenen Bereich und enthalten ausschließlich bereichsspezifische Präzisierungen oder zusätzliche Einschränkungen.
+Lokale Regeln dürfen höhere Regeln präzisieren, aber keine höhere MUST-Regel abschwächen.
+Konkrete aufgabenspezifische Sollvorgaben werden als `SPEC.md` oder `*-SPEC.md` nahe am betroffenen Bereich abgelegt.
