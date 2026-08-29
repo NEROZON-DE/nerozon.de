@@ -161,7 +161,9 @@ document.querySelector('#contact-form').addEventListener('submit',e=>{
   const fd=new FormData(e.currentTarget);
   const message=(fd.get('message')||'').trim();
   const email=(fd.get('email')||'').trim();
+  const privacyConsent=fd.get('privacy_consent')==='accepted';
   if(!message&&!email){document.querySelector('#contact-state').textContent='Sie können das Formular auch einfach leer lassen.';return;}
-  console.info('Independent contact payload ready for API:',{message,email});
+  if(!privacyConsent){document.querySelector('#contact-state').textContent='Bitte bestätigen Sie die Datenschutzerklärung, bevor Sie die Nachricht senden.';return;}
+  console.info('Independent contact payload ready for API:',{message,email,privacyConsent:true});
   document.querySelector('#contact-state').textContent='Nachricht ist für die separate Übermittlung vorbereitet. Die API-Anbindung folgt im nächsten Schritt.';
 });
