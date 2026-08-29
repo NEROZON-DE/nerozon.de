@@ -128,6 +128,12 @@ Q-037
 Frage 20 ist auf 4.000 Zeichen begrenzt.
 Ab 3.000 Zeichen wird ein sichtbarer Zeichenzähler eingeblendet, der den aktuellen Stand bis zum Limit anzeigt.
 
+Q-038
+Antwortoptionen wie `Weitere` oder `Anderes`, die eine individuelle Ergänzung vorsehen, blenden bei Aktivierung ein zugehöriges Freitextfeld innerhalb derselben Frage ein.
+Bei einer Einzelauswahl mit solcher Ergänzung wird beim Aktivieren dieser Option nicht automatisch zur nächsten Frage gescrollt.
+`Return` bzw. `Enter` innerhalb eines eingeblendeten Ergänzungsfelds erzeugt einen normalen Zeilenumbruch und löst keinen automatischen Wechsel oder Scroll zur nächsten Frage aus.
+Wird die zugehörige Option deaktiviert, wird das Ergänzungsfeld nicht als Antwort übermittelt.
+
 ## Anonymität
 
 Q-040
