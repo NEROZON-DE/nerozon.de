@@ -53,6 +53,14 @@ Antwortoptionen sollen bevorzugt als klar beschriftete Auswahlflächen mit unter
 Q-018
 Frage, Antwortoptionen und aktueller Abschnitt haben visuell Vorrang vor ergänzenden Erklärungen.
 
+Q-019
+Antwortoptionen werden als klickbare, großzügige Flächen gestaltet.
+Sie dürfen keine gequetschte Pillen-Sammlung erzeugen, wenn dadurch Lesbarkeit oder Premiumwirkung leiden.
+
+Q-019a
+Die im Fragebogen verwendeten Antwortoptionen werden aus dem Drive-Dokument `20-fragen` übernommen bzw. dort gepflegt.
+Änderungen an Antwortoptionen werden zuerst im Dokument oder parallel mit eindeutiger Rückführbarkeit dokumentiert.
+
 ## Einstieg und Scroll-Dramaturgie
 
 Q-020
@@ -77,6 +85,14 @@ Q-025
 Die konkrete visuelle Inszenierung der vier Pakete ist bewusst nicht festgelegt.
 Sie soll innerhalb der NEROZON-Designsprache einen hochwertigen, überraschenden Produktseiten-Charakter erzeugen.
 
+Q-026
+Fünf Fragen eines Pakets dürfen nicht wie ein gedrängter Formularblock wirken.
+Die Umsetzung soll entweder einzelne Fragen stärker fokussieren oder innerhalb des Pakets ausreichend Raum, Rhythmus und visuelle Staffelung schaffen.
+
+Q-027
+Hintergründe und Kapitelbilder unterstützen die Reise: Realität → Bremsen → Vertrauen/Kontrolle → Wert.
+Sie werden als Atmosphäre und Orientierung eingesetzt, nicht als Dekoration ohne Zweck.
+
 ## Nutzerführung und Zustand
 
 Q-030
@@ -90,6 +106,10 @@ Der Nutzer darf frühere Fragen vor dem Absenden erneut aufrufen und seine Antwo
 
 Q-033
 Der Fragebogen darf den Nutzer nicht durch Pflichtfelder, künstliche Sperren oder wiederholte Aufforderungen zu Antworten drängen.
+
+Q-034
+Die Fortschrittsanzeige muss wahrnehmbar sein.
+Ein stärkerer oberer Fortschrittsbalken oder eine Kapitelanzeige `01–04` ist einem kaum sichtbaren dünnen Balken vorzuziehen.
 
 ## Anonymität
 
