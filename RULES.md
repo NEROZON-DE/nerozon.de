@@ -13,6 +13,15 @@ Diese Datei definiert die projektweiten Regeln für Struktur, Spezifikationen un
 5. Je spezifischer eine Regel ist, desto enger ist ihr Geltungsbereich – nicht automatisch ihre Priorität.
 6. Widersprüche zwischen geltenden Regeln werden nicht durch Interpretation aufgelöst. Sie müssen sichtbar gemacht und bewusst entschieden werden.
 
+## Umgang mit bekannten Widersprüchen
+
+- Bekannte Widersprüche, Inkonsistenzen oder noch nicht entschiedene Konflikte, die in `Devin-exercise` nicht unverzüglich aufgelöst werden, werden im Root-Register `/contradictions-RULES.md` dokumentiert.
+- Solange ein Widerspruch dort eingetragen ist, sind daraus resultierende unstetige, widersprüchliche oder vorübergehend inkonsistente Ergebnisse im Arbeitsbranch akzeptiert und sollen bei wiederholten Tests oder Analysen nicht jedes Mal erneut als neuer Befund behandelt werden.
+- Ein Eintrag in `/contradictions-RULES.md` ändert keine fachliche Regel und hebt keine Anforderung auf. Er dokumentiert ausschließlich einen bewusst tolerierten Zwischenzustand.
+- Neue Auswirkungen eines bereits bekannten Widerspruchs werden dem bestehenden Eintrag ergänzt, sofern sie denselben Grundkonflikt betreffen.
+- Gelöste Widersprüche werden aus dem Register entfernt; die Historie liegt in Git.
+- Vor einer Promotion nach `specs` muss `/contradictions-RULES.md` inhaltlich leer sein. Ein bewusst ungelöster Widerspruch darf nicht in den akzeptierten Spec-Referenzstand übernommen werden.
+
 ## Inhalt von Spezifikationen
 
 - Spezifikationen beschreiben verbindlich, WAS erreicht werden muss und WARUM eine Anforderung besteht.
