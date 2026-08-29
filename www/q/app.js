@@ -21,18 +21,76 @@ const questions=[
 {q:'Wenn ein sicherer produktiver KI-Einsatz möglich wäre: Wo würden Sie morgen anfangen?',type:'text',placeholder:'Was wäre Ihr erster Anwendungsfall?'}
 ];
 
-function renderQuestion(item,index){const number=index+1;const wrap=document.createElement('div');wrap.className='question';const title=document.createElement('p');title.className='question-title';title.textContent=`${number}. ${item.q}`;wrap.append(title);if(item.type==='text'){const area=document.createElement('textarea');area.className='text-answer';area.name=`q${number}`;area.rows=2;area.placeholder=item.placeholder||'';area.setAttribute('aria-label',item.q);wrap.append(area);return wrap}const answers=document.createElement('div');answers.className='answers';item.o.forEach(([icon,label],i)=>{const cell=document.createElement('div');cell.className='answer';const input=document.createElement('input');input.type=item.type==='multi'?'checkbox':'radio';input.name=item.type==='multi'?`q${number}[]`:`q${number}`;input.id=`q${number}-${i}`;input.value=label;const lab=document.createElement('label');lab.htmlFor=input.id;lab.innerHTML=`<span class="answer-icon" aria-hidden="true">${icon}</span><span>${label}</span>`;cell.append(input,lab);answers.append(cell)});wrap.append(answers);return wrap}
+function renderQuestion(item,index){
+  const number=index+1;
+  const wrap=document.createElement('div');
+  wrap.className='question';
+  wrap.dataset.question=number;
+  const title=document.createElement('p');
+  title.className='question-title';
+  title.textContent=`${number}. ${item.q}`;
+  wrap.append(title);
+  if(item.type==='text'){
+    const area=document.createElement('textarea');
+    area.className='text-answer';area.name=`q${number}`;area.rows=2;area.placeholder=item.placeholder||'';area.setAttribute('aria-label',item.q);
+    wrap.append(area);return wrap;
+  }
+  const answers=document.createElement('div');answers.className='answers';
+  item.o.forEach(([icon,label],i)=>{
+    const cell=document.createElement('div');cell.className='answer';
+    const input=document.createElement('input');input.type=item.type==='multi'?'checkbox':'radio';input.name=item.type==='multi'?`q${number}[]`:`q${number}`;input.id=`q${number}-${i}`;input.value=label;
+    const lab=document.createElement('label');lab.htmlFor=input.id;lab.innerHTML=`<span class="answer-icon" aria-hidden="true">${icon}</span><span>${label}</span>`;
+    cell.append(input,lab);answers.append(cell);
+  });
+  wrap.append(answers);return wrap;
+}
 
 questions.forEach((q,i)=>document.querySelector(`#questions-${Math.floor(i/5)+1}`).append(renderQuestion(q,i)));
 
 document.querySelectorAll('[data-scroll]').forEach(btn=>btn.addEventListener('click',()=>document.querySelector(btn.dataset.scroll)?.scrollIntoView({behavior:'smooth'})));
 
-window.addEventListener('scroll',()=>{const max=document.documentElement.scrollHeight-innerHeight;document.querySelector('#progress-bar').style.width=`${max?scrollY/max*100:0}%`},{passive:true});
+window.addEventListener('scroll',()=>{
+  const max=document.documentElement.scrollHeight-innerHeight;
+  document.querySelector('#progress-bar').style.width=`${max?scrollY/max*100:0}%`;
+},{passive:true});
 
-const questionnaire=document.querySelector('#questionnaire');questionnaire.addEventListener('submit',e=>{e.preventDefault();const data=new FormData(questionnaire);const payload={questionnaireVersion:'research-20-v1',submittedAt:new Date().toISOString(),answers:{}};for(const [key,value] of data.entries()){const clean=key.replace('[]','');if(payload.answers[clean]===undefined)payload.answers[clean]=value;else if(Array.isArray(payload.answers[clean]))payload.answers[clean].push(value);else payload.answers[clean]=[payload.answers[clean],value]}
+const questionObserver=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>entry.target.classList.toggle('is-active',entry.isIntersecting));
+},{rootMargin:'-28% 0px -28% 0px',threshold:.15});
+document.querySelectorAll('.question').forEach(q=>questionObserver.observe(q));
+
+const chapterLinks=[...document.querySelectorAll('[data-chapter]')];
+const chapterObserver=new IntersectionObserver(entries=>{
+  const visible=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+  if(!visible)return;
+  const chapter=visible.target.dataset.package;
+  chapterLinks.forEach(link=>link.classList.toggle('is-active',link.dataset.chapter===chapter));
+},{rootMargin:'-35% 0px -35% 0px',threshold:[.05,.2,.5]});
+document.querySelectorAll('[data-package]').forEach(section=>chapterObserver.observe(section));
+
+const questionnaire=document.querySelector('#questionnaire');
+questionnaire.addEventListener('submit',e=>{
+  e.preventDefault();
+  const data=new FormData(questionnaire);
+  const payload={questionnaireVersion:'research-20-v1',submittedAt:new Date().toISOString(),answers:{}};
+  for(const [key,value] of data.entries()){
+    const clean=key.replace('[]','');
+    if(payload.answers[clean]===undefined)payload.answers[clean]=value;
+    else if(Array.isArray(payload.answers[clean]))payload.answers[clean].push(value);
+    else payload.answers[clean]=[payload.answers[clean],value];
+  }
   console.info('Questionnaire payload ready for API:',payload);
   document.querySelector('#submit-state').textContent='Antworten sind für die Übermittlung vorbereitet. Die API-Anbindung folgt im nächsten Schritt.';
-  const contact=document.querySelector('#contact');contact.hidden=false;setTimeout(()=>contact.scrollIntoView({behavior:'smooth'}),250);
+  const contact=document.querySelector('#contact');contact.hidden=false;
+  setTimeout(()=>contact.scrollIntoView({behavior:'smooth'}),250);
 });
 
-document.querySelector('#contact-form').addEventListener('submit',e=>{e.preventDefault();const fd=new FormData(e.currentTarget);const message=(fd.get('message')||'').trim();const email=(fd.get('email')||'').trim();if(!message&&!email){document.querySelector('#contact-state').textContent='Sie können das Formular auch einfach leer lassen.';return}console.info('Independent contact payload ready for API:',{message,email});document.querySelector('#contact-state').textContent='Nachricht ist für die separate Übermittlung vorbereitet. Die API-Anbindung folgt im nächsten Schritt.'});
+document.querySelector('#contact-form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const fd=new FormData(e.currentTarget);
+  const message=(fd.get('message')||'').trim();
+  const email=(fd.get('email')||'').trim();
+  if(!message&&!email){document.querySelector('#contact-state').textContent='Sie können das Formular auch einfach leer lassen.';return;}
+  console.info('Independent contact payload ready for API:',{message,email});
+  document.querySelector('#contact-state').textContent='Nachricht ist für die separate Übermittlung vorbereitet. Die API-Anbindung folgt im nächsten Schritt.';
+});
