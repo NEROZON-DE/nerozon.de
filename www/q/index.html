@@ -21,7 +21,7 @@
         <h1>Sind Sie zufrieden damit, wie KI heute in Ihrem Unternehmen eingesetzt wird?</h1>
         <p class="factline">20 Fragen · etwa 2 Minuten · anonym</p>
         <p class="muted">Uns interessiert, was heute funktioniert, was bremst und wo produktive KI echten Wert schaffen kann. Jede Antwort hilft – jede Frage darf übersprungen werden.</p>
-        <button class="continue" type="button" data-scroll="#package-1">Los geht’s <span>↓</span></button>
+        <button class="continue" id="start-questionnaire" type="button" data-scroll="#package-1">Los geht’s <span>↓</span></button>
       </div>
     </section>
 
@@ -91,6 +91,19 @@
     <a href="#package-3" data-chapter="3">03</a><i></i>
     <a href="#package-4" data-chapter="4">04</a>
   </nav>
+
+  <dialog class="time-dialog" id="time-dialog" aria-labelledby="time-dialog-title" aria-describedby="time-dialog-copy">
+    <div class="time-dialog-inner">
+      <div class="eyebrow">2 Minuten sind um</div>
+      <h2 id="time-dialog-title">Danke für Ihre Zeit.</h2>
+      <p id="time-dialog-copy">Wenn Sie noch einen Moment haben, freut sich NEROZON über jede weitere Antwort. Sie können aber auch jetzt direkt absenden.</p>
+      <div class="time-dialog-actions">
+        <button class="time-dialog-continue" id="time-dialog-continue" type="button">Weiter beantworten</button>
+        <button class="time-dialog-submit" id="time-dialog-submit" type="button">Jetzt absenden <span>→</span></button>
+      </div>
+    </div>
+  </dialog>
+
   <script src="app.js"></script>
 </body>
 </html>
