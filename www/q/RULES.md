@@ -36,6 +36,11 @@ Q-013
 Die Zielvorgabe für den vollständigen Fragebogen beträgt ungefähr zwei Minuten.
 Die Interaktion wird deshalb auf schnelles Erfassen und möglichst direkte Auswahl ausgelegt.
 
+Q-013a
+Die Zwei-Minuten-Zeit beginnt mit der bewussten Aktion `Los geht’s`.
+Nach Ablauf von zwei Minuten wird einmalig ein freundlicher Hinweis eingeblendet, der sowohl das weitere Beantworten als auch das sofortige Absenden der bis dahin gegebenen Antworten anbietet.
+Der Hinweis darf keine Antwort erzwingen und darf nach `Weiter beantworten` nicht erneut erscheinen.
+
 Q-014
 Keine der 20 Fragen ist verpflichtend.
 Der Nutzer darf einzelne Fragen oder ganze Bereiche unbeantwortet lassen und den Fragebogen trotzdem absenden.
