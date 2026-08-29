@@ -26,6 +26,7 @@ function renderQuestion(item,index){
   const wrap=document.createElement('div');
   wrap.className='question';
   wrap.dataset.question=number;
+  wrap.dataset.type=item.type;
   const title=document.createElement('p');
   title.className='question-title';
   title.textContent=`${number}. ${item.q}`;
@@ -46,6 +47,26 @@ function renderQuestion(item,index){
 }
 
 questions.forEach((q,i)=>document.querySelector(`#questions-${Math.floor(i/5)+1}`).append(renderQuestion(q,i)));
+
+function scrollToNextQuestion(currentQuestion){
+  const questionNumber=Number(currentQuestion.dataset.question);
+  const next=document.querySelector(`.question[data-question="${questionNumber+1}"]`);
+  const target=next||document.querySelector('#finish');
+  if(!target)return;
+  window.setTimeout(()=>target.scrollIntoView({behavior:'smooth',block:next?'center':'start'}),120);
+}
+
+document.querySelectorAll('.question[data-type="single"] input[type="radio"], .question[data-type="scale"] input[type="radio"]').forEach(input=>{
+  input.addEventListener('change',()=>scrollToNextQuestion(input.closest('.question')));
+});
+
+document.querySelectorAll('.question[data-question="10"] .text-answer, .question[data-question="17"] .text-answer').forEach(area=>{
+  area.addEventListener('keydown',event=>{
+    if(event.key!=='Enter'||event.shiftKey||event.isComposing)return;
+    event.preventDefault();
+    scrollToNextQuestion(area.closest('.question'));
+  });
+});
 
 document.querySelectorAll('[data-scroll]').forEach(btn=>btn.addEventListener('click',()=>document.querySelector(btn.dataset.scroll)?.scrollIntoView({behavior:'smooth'})));
 
