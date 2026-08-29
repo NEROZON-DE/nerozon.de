@@ -1,53 +1,38 @@
-# NEROZON Repository – General Rules
+# nerozon.de Repository – General Rules
 
 Status: DRAFT
 
-Diese Datei definiert die projektweiten Regeln für Struktur, Spezifikationen und Regelpflege im Repository. Sie gilt für das gesamte Repository. Spezifischere `RULES.md` und `*-RULES.md` dürfen diese Regeln für ihren Bereich ergänzen, aber nicht stillschweigend widersprechen.
+Diese Datei definiert die projektweiten Meta-Regeln für Struktur, Spezifikationen und Regelpflege im Repository `nerozon.de`.
+
+Die NEROZON-weiten Engineering-Regeln sind die übergeordnete Basis. Diese Repository-Regeln und alle darunterliegenden Regeln dürfen sie präzisieren, aber nicht still abschwächen.
 
 ## Regelhierarchie
 
-1. Diese Root-`RULES.md` definiert die projektweiten Meta-Regeln.
-2. Projektweite fachliche und technische Grundlagen liegen unter `/docs/`.
-3. Bereichsspezifische `RULES.md` gelten für ihren Verzeichnisbaum.
-4. `*-RULES.md` dürfen einen enger abgegrenzten Themenbereich zusätzlich spezifizieren.
-5. Je spezifischer eine Regel ist, desto enger ist ihr Geltungsbereich – nicht automatisch ihre Priorität.
-6. Widersprüche zwischen geltenden Regeln werden nicht durch Interpretation aufgelöst. Sie müssen sichtbar gemacht und bewusst entschieden werden.
+1. NEROZON-weite Engineering-Regeln bilden die übergeordnete technische Grundlinie.
+2. Diese Root-`RULES.md` definiert die projektweiten Meta-Regeln für `nerozon.de`.
+3. Projektweite technische Grundlagen liegen unter `/docs/`.
+4. Bereichsspezifische `RULES.md` gelten für ihren Verzeichnisbaum.
+5. `*-RULES.md` dürfen einen enger abgegrenzten Themenbereich zusätzlich präzisieren.
+6. Je spezifischer eine Regel ist, desto enger ist ihr Geltungsbereich – nicht automatisch ihre Priorität.
+7. Eine niedrigere Ebene darf eine höhere MUST-Regel nicht abschwächen. Widersprüche werden sichtbar gemacht und nach dem definierten Ausnahme- bzw. Klärungsprozess behandelt.
 
-## Umgang mit bekannten Widersprüchen
+## Spezifikationen
 
-- Bekannte Widersprüche, Inkonsistenzen oder noch nicht entschiedene Konflikte, die in `Devin-exercise` nicht unverzüglich aufgelöst werden, werden im Root-Register `/contradictions-RULES.md` dokumentiert.
-- Solange ein Widerspruch dort eingetragen ist, sind daraus resultierende unstetige, widersprüchliche oder vorübergehend inkonsistente Ergebnisse im Arbeitsbranch akzeptiert und sollen bei wiederholten Tests oder Analysen nicht jedes Mal erneut als neuer Befund behandelt werden.
-- Ein Eintrag in `/contradictions-RULES.md` ändert keine fachliche Regel und hebt keine Anforderung auf. Er dokumentiert ausschließlich einen bewusst tolerierten Zwischenzustand.
-- Neue Auswirkungen eines bereits bekannten Widerspruchs werden dem bestehenden Eintrag ergänzt, sofern sie denselben Grundkonflikt betreffen.
-- Gelöste Widersprüche werden aus dem Register entfernt; die Historie liegt in Git.
-- Vor einer Promotion nach `specs` muss `/contradictions-RULES.md` inhaltlich leer sein. Ein bewusst ungelöster Widerspruch darf nicht in den akzeptierten Spec-Referenzstand übernommen werden.
-
-## Inhalt von Spezifikationen
-
-- Spezifikationen beschreiben verbindlich, WAS erreicht werden muss und WARUM eine Anforderung besteht.
-- Das WIE der konkreten Implementierung gehört nur dann in die Spezifikation, wenn die technische Form selbst eine verbindliche Architektur-, Sicherheits-, Daten- oder Schnittstellenanforderung ist.
-- Implementierungsdetails, die frei austauschbar sein sollen, gehören nicht in die verbindliche Spezifikation.
-- Beispiele, Datenmodelle, Schemas und Schnittstellenbeschreibungen gehören zur Spezifikation, wenn sie Anforderungen oder Verträge erklären bzw. maschinenprüfbar machen.
-- Beispiele müssen erkennbar machen, ob sie normativ/verbindlich oder lediglich illustrativ sind.
-- Offene oder noch nicht entschiedene Punkte werden ausdrücklich als `OPEN` oder `TBD` gekennzeichnet und dürfen nicht als implizit entschieden behandelt werden.
-
-## Pflege von Regeln und Dokumentation
-
-- Neue Regeln werden nicht allein deshalb eingeführt, weil eine bestehende Implementierung sich so verhält.
-- Änderungen an Regeln sind bewusste Spezifikations- bzw. Architekturentscheidungen.
-- Neue Erkenntnisse sollen bestehende Regeln konsolidieren und aktualisieren. Historische, überholte oder widersprüchliche Aussagen werden entfernt statt dauerhaft angehängt; die Historie liegt in Git.
-- Unnötige Wiederholungen zwischen Root-Regeln, `/docs/` und lokalen Regeldateien sind zu vermeiden.
-- Lokale Regeldateien enthalten nur die zusätzlichen Anforderungen ihres Bereichs.
-- Vor einer Regeländerung sind betroffene übergeordnete und angrenzende Spezifikationen auf Auswirkungen und Widersprüche zu prüfen.
+- Konkrete fachliche, funktionale oder gestalterische Sollvorgaben werden als `SPEC.md` oder `*-SPEC.md` nahe am betroffenen Bereich abgelegt.
+- Spezifikationen können Funktionen, Interaktionen, Texte, Datenstrukturen, Schnittstellen, Beispiele, Assets oder Designelemente verbindlich beschreiben.
+- Eine SPEC ist keine RULES-Datei und erweitert oder reduziert allein durch ihre Bezeichnung keine Engineering-, Conformance- oder Freigaberegel.
+- Widerspricht eine SPEC einer geltenden Regel, wird der Konflikt vor Umsetzung geklärt.
+- `DRAFT` kennzeichnet einen Arbeitsstand; `APPROVED` kennzeichnet freigegebenen Entwicklungsinput.
 
 ## Branch `specs`
 
-Der Branch `specs` ist der bewusst geprüfte und freigegebene Referenzstand der NEROZON-Spezifikation.
+`specs` ist der gemeinsame Referenz- und Übergabestand für die Informationsstruktur von `nerozon.de`.
 
-Er enthält die Informations- und Verzeichnisstruktur, die zum Verständnis und zur Prüfung des Projekts notwendig ist, insbesondere:
+Er enthält insbesondere:
 
-- `/docs/` und andere verbindliche Dokumentation,
-- alle geltenden `RULES.md` und `*-RULES.md`,
+- Root- und lokale RULES-Dateien,
+- `/docs/`,
+- `SPEC.md` und `*-SPEC.md`,
 - relevante Verzeichnisstruktur,
 - Referenz-Assets,
 - Beispiele,
@@ -56,16 +41,34 @@ Er enthält die Informations- und Verzeichnisstruktur, die zum Verständnis und 
 
 `specs` enthält keinen ausführbaren Produktiv- oder Runtime-Code. Verzeichnisse ohne Spec-Inhalt dürfen durch `.gitkeep` abgebildet werden.
 
-## Promotion nach `specs`
+## Synchronisation gemeinsamer RULES und SPEC
 
-- `Devin-exercise` ist der aktive Arbeits- und Integrationsstand. Dort dürfen Spezifikation und Implementierung gemeinsam weiterentwickelt werden.
-- Eine Promotion nach `specs` ist keine vollständige Branch-Merge-Operation, sondern eine kontrollierte Extraktion der spezifikationsrelevanten Änderungen.
-- Vor der Promotion werden die Änderungen auf Widersprüche, Dubletten, fehlende Grundlagen und Auswirkungen auf bestehende Spezifikationen geprüft.
-- Nach `specs` werden ausschließlich zulässige Spec-Inhalte übernommen; Ausführungscode und Deployment-Implementierung bleiben ausgeschlossen.
-- Die Promotion erfolgt grundsätzlich über einen Pull Request, damit die Änderung gegenüber dem zuletzt akzeptierten Spec-Stand als Diff geprüft werden kann. Eine ausdrücklich vereinbarte Initialbefüllung darf davon abweichen.
-- Der Merge nach `specs` bedeutet, dass der enthaltene Informationsstand bewusst als akzeptierte Referenz übernommen wurde.
+- Änderungen an `RULES.md`, `*-RULES.md`, `SPEC.md` oder `*-SPEC.md`, die nicht ausdrücklich für einen bestimmten Branch bestimmt sind, werden zuerst in `specs` eingebracht.
+- Solche gemeinsamen Änderungen werden in `dev1`, `dev2` und `dev3` mit demselben Inhalt übernommen.
+- Unbeabsichtigte Unterschiede der gemeinsamen RULES- und SPEC-Stände zwischen `dev1`, `dev2` und `dev3` sind nicht zulässig.
+- Eine branch-spezifische Abweichung muss ausdrücklich als solche benannt sein.
+- `Devin-exercise` ist von dieser automatischen bzw. gemeinsamen Synchronisation ausgenommen. Der Branch bleibt unabhängig und übernimmt benötigte Änderungen aus `specs` selbst.
+
+## Bekannte Widersprüche im Arbeitsstand
+
+Arbeitsbranches dürfen für bekannte, vorübergehend tolerierte Widersprüche ein branch-lokales Register `/CONTRADICTIONS.md` führen.
+
+- Das Register ist keine Regeldatei und verändert keine geltende Anforderung.
+- Ein Eintrag dokumentiert ausschließlich einen bekannten Zwischenzustand.
+- Gelöste Einträge werden entfernt; die Historie liegt in Git.
+- Bekannte, nicht durch eine autorisierte NEROZON-Ausnahme gedeckte Widersprüche gegen geltende MUST-Regeln oder verbindliche Spezifikationen müssen vor einer produktiven Freigabe aufgelöst sein.
+- `specs` darf keinen bewusst ungelösten Widerspruch als akzeptierten Referenzstand enthalten.
+
+## Pflege von Regeln und Dokumentation
+
+- Neue Regeln werden nicht allein deshalb eingeführt, weil eine bestehende Implementierung sich so verhält.
+- Änderungen an Regeln sind bewusste Spezifikations- bzw. Architekturentscheidungen.
+- Neue Erkenntnisse konsolidieren und aktualisieren bestehende Regeln; historische, überholte oder widersprüchliche Aussagen werden entfernt statt dauerhaft angehängt.
+- Unnötige Wiederholungen zwischen Root-Regeln, `/docs/`, lokalen RULES und SPECs sind zu vermeiden.
+- Vor einer Regeländerung sind betroffene übergeordnete und angrenzende Spezifikationen auf Auswirkungen und Widersprüche zu prüfen.
 
 ## Deployment
 
-`RULES.md` und `*-RULES.md` sind Repository-Metadaten und niemals Bestandteil produktiver Deployment-Artefakte.
-Der Branch `specs` ist nicht deploybar und darf nicht als Quelle eines Produktionsdeployments verwendet werden.
+`RULES.md`, `*-RULES.md`, `SPEC.md` und `*-SPEC.md` sind Repository-Metadaten bzw. Entwicklungsinput und kein Bestandteil produktiver Laufzeitartefakte.
+
+Der Branch `specs` ist nicht deploybar und darf nicht als Quelle eines Runtime-Deployments verwendet werden.

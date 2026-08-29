@@ -1,37 +1,60 @@
-# NEROZON Development
+# nerozon.de Development
 
 Status: DRAFT
 
 ## Grundsätze
 
 - Änderungen werden nachvollziehbar versioniert.
-- Neue Entwicklungsarbeit beginnt grundsätzlich auf Basis des aktuellen produktiven Stands, sofern für einen Arbeitsstrang kein anderer Branch ausdrücklich festgelegt wurde.
-- `Devin-exercise` ist aktuell der vereinbarte aktive Arbeits- und Integrationsbranch für die gemeinsame Weiterentwicklung.
-- KI-Worker entwickeln auf dafür festgelegten Arbeitsbranches und liefern Änderungen kontrolliert zur Übernahme.
-- Vor Änderungen sind die Root-`RULES.md`, `/docs/` sowie die für den betroffenen Pfad geltenden lokalen `RULES.md` und `*-RULES.md` zu berücksichtigen.
-- Widerspricht eine geplante Implementierung einer geltenden Regel, wird der Konflikt vor Umsetzung benannt und bewusst entschieden.
-- Regeländerungen sind Architektur- bzw. Spezifikationsentscheidungen und keine implizite Folge einer Implementierung.
+- Vor Änderungen sind die NEROZON-weiten Engineering-Regeln, die Root-`RULES.md`, `/docs/` sowie die für den betroffenen Pfad geltenden lokalen RULES und SPECs zu berücksichtigen.
+- Widerspricht eine geplante Implementierung einer geltenden Regel oder Spezifikation, wird der Konflikt vor Umsetzung benannt und bewusst entschieden.
+- Regeländerungen sind Architektur- bzw. Governance-Entscheidungen und keine implizite Folge einer Implementierung.
+- Spezifikationsänderungen sind bewusste Änderungen des Sollstands und werden nicht still aus bestehendem Code abgeleitet.
 
-## Repository-Dokumentation
+## Dokumentationsebenen
 
-GitHub enthält die verbindliche technische Projektbeschreibung, Regeln, Verträge und die dazugehörige Implementierung. Google Drive kann ergänzende fachliche, organisatorische oder explorative Informationen enthalten.
+NEROZON-weite Engineering-Regeln definieren die produktübergreifenden technischen Leitplanken.
 
-Projektweite technische Informationen gehören nach `/docs/`.
-Lokale `RULES.md` bleiben nah am betroffenen Verzeichnis und enthalten nur Regeln, die für den jeweiligen Bereich zusätzlich gelten.
-Dubletten zwischen Root-Regeln, `/docs/` und lokalen Regeldateien sind zu vermeiden.
+Dieses Repository enthält die verbindliche technische Projektbeschreibung für `nerozon.de`:
+- `/docs/` für projektweite technische Grundlagen,
+- Root- und lokale RULES für projektweite bzw. bereichsspezifische Regeln,
+- `SPEC.md` und `*-SPEC.md` für konkrete fachliche, funktionale oder gestalterische Sollvorgaben,
+- Code und technische Artefakte für die Implementierung in ausführbaren Branches.
 
-## Regeldateien
+Dubletten zwischen diesen Ebenen sind zu vermeiden. Niedrigere Ebenen präzisieren höhere, ohne deren MUST-Regeln abzuschwächen.
 
-Verbindliche Regeldateien heißen `RULES.md` oder `*-RULES.md`.
-Für Aufbau, Hierarchie, Pflege und Konfliktbehandlung dieser Dateien gilt die Root-`RULES.md`.
-Regeldateien sind Repository-Metadaten und kein Bestandteil produktiver Deployment-Artefakte.
+## Branch-Modell
 
-## Branch `specs`
+### `specs`
 
-`specs` ist der geprüfte Referenzstand der Projektspezifikation und ausdrücklich kein zweiter ausführbarer Projektstand.
+`specs` ist der gemeinsame Referenz- und Übergabestand für die Informationsstruktur des Projekts.
+Der Branch enthält Regeln, Spezifikationen, technische Dokumentation, Referenz-Assets, Beispiele, Datenmodelle, Schemas und Schnittstellenverträge, aber keinen ausführbaren Produktiv- oder Runtime-Code.
 
-Der Branch enthält nur spezifikationsrelevante Informationen und Strukturen, insbesondere Dokumentation, Regeln, Referenz-Assets, Beispiele, Datenmodelle, Schemas und Schnittstellenverträge. Runtime-, Produktiv- und Deployment-Code wird nicht übernommen.
+Nicht branch-spezifische Änderungen an RULES und SPEC werden zuerst in `specs` vorgenommen.
 
-Änderungen werden aus dem aktiven Arbeitsstand gezielt extrahiert und grundsätzlich per Pull Request nach `specs` übernommen. Der PR dient als Review-Grenze: geprüft wird nur, was sich gegenüber dem zuletzt akzeptierten Spec-Stand geändert hat.
+### `dev1`, `dev2`, `dev3`
 
-Ein Merge nach `specs` bedeutet, dass der enthaltene Informationsstand bewusst als Referenz akzeptiert wurde. Die detaillierten Promotion-Regeln stehen in der Root-`RULES.md`.
+Die regulären DEV-Branches dürfen Implementierungen unabhängig entwickeln und testen.
+
+Gemeinsame RULES- und SPEC-Änderungen aus `specs` werden mit demselben Inhalt in alle drei DEV-Branches übernommen.
+Dadurch dürfen sich Implementierungen unterscheiden, der gemeinsame normative und spezifizierte Sollstand jedoch nicht unbeabsichtigt auseinanderlaufen.
+
+Branch-spezifische RULES- oder SPEC-Abweichungen müssen ausdrücklich als solche benannt sein.
+
+### `Devin-exercise`
+
+`Devin-exercise` bleibt ein unabhängiger Arbeits- und Experimentierbranch.
+Er wird nicht automatisch mit gemeinsamen RULES- oder SPEC-Änderungen synchronisiert und ist selbst dafür verantwortlich, benötigte Änderungen aus `specs` zu übernehmen.
+
+## Widersprüche im Arbeitsstand
+
+Ein ausführbarer Arbeitsbranch darf bekannte, vorübergehend tolerierte Widersprüche in `/CONTRADICTIONS.md` dokumentieren.
+
+Der Registereintrag hebt keine Regel oder Spezifikation auf.
+Bekannte, nicht durch eine autorisierte NEROZON-Ausnahme gedeckte Widersprüche gegen geltende MUST-Regeln oder verbindliche Spezifikationen müssen vor produktiver Freigabe aufgelöst sein.
+
+## Regel- und Spezifikationsdateien
+
+Verbindliche lokale Regeldateien heißen `RULES.md` oder `*-RULES.md`.
+Konkrete Entwicklungsaufträge und Sollvorgaben heißen `SPEC.md` oder `*-SPEC.md`.
+
+RULES und SPECs sind Repository-Metadaten bzw. Entwicklungsinput und kein Bestandteil produktiver Laufzeitartefakte.
