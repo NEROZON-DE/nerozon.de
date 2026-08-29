@@ -18,7 +18,7 @@ const questions=[
 {q:'Welche wiederkehrenden Tätigkeiten würden Sie am liebsten als Erstes automatisieren?',type:'text',placeholder:'Kurze Stichworte genügen …'},
 {q:'Wäre für Sie eine Lösung interessanter, die vorhandene Systeme verbindet, statt weitere Insellösungen einzuführen?',type:'single',o:[['✓','Ja'],['◐','Kommt darauf an'],['○','Nein']]},
 {q:'Was wäre für Sie der wichtigste messbare Erfolg eines KI-Projekts?',type:'single',o:[['◷','Zeitersparnis'],['€','Kosten'],['◇','Qualität'],['⚡','Geschwindigkeit'],['◎','Transparenz'],['☺','Mitarbeiterentlastung'],['＋','Anderes']]},
-{q:'Wenn ein sicherer produktiver KI-Einsatz möglich wäre: Wo würden Sie morgen anfangen?',type:'text',placeholder:'Was wäre Ihr erster Anwendungsfall?'}
+{q:'Wenn ein sicherer produktiver KI-Einsatz möglich wäre: Wo würden Sie morgen anfangen?',type:'text',placeholder:'Was wäre Ihr erster Anwendungsfall?',maxLength:4000,counterFrom:3000}
 ];
 
 function renderQuestion(item,index){
@@ -34,6 +34,25 @@ function renderQuestion(item,index){
   if(item.type==='text'){
     const area=document.createElement('textarea');
     area.className='text-answer';area.name=`q${number}`;area.rows=2;area.placeholder=item.placeholder||'';area.setAttribute('aria-label',item.q);
+    if(item.maxLength){
+      area.maxLength=item.maxLength;
+      const counter=document.createElement('div');
+      counter.className='text-counter';
+      counter.hidden=true;
+      counter.setAttribute('aria-live','polite');
+      counter.style.marginTop='.65rem';
+      counter.style.textAlign='right';
+      counter.style.color='var(--muted)';
+      counter.style.fontSize='.9rem';
+      const updateCounter=()=>{
+        const length=area.value.length;
+        counter.hidden=length<(item.counterFrom||0);
+        counter.textContent=`${length.toLocaleString('de-DE')} / ${item.maxLength.toLocaleString('de-DE')} Zeichen`;
+      };
+      area.addEventListener('input',updateCounter);
+      wrap.append(area,counter);
+      return wrap;
+    }
     wrap.append(area);return wrap;
   }
   const answers=document.createElement('div');answers.className='answers';
