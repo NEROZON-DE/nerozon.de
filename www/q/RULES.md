@@ -116,6 +116,14 @@ Q-034
 Die Fortschrittsanzeige muss wahrnehmbar sein.
 Ein stärkerer oberer Fortschrittsbalken oder eine Kapitelanzeige `01–04` ist einem kaum sichtbaren dünnen Balken vorzuziehen.
 
+Q-035
+Bei Fragen mit genau einer möglichen Auswahl führt die Auswahl nach kurzer visueller Rückmeldung sanft zur nächsten Frage.
+Mehrfachauswahlen bleiben am aktuellen Ort, damit mehrere Optionen gewählt werden können.
+
+Q-036
+Bei kurzen Freitextfragen führt `Return` nach der Eingabe sanft zur nächsten Frage, sofern die Frage nicht bewusst als abschließender Freitext ausgelegt ist.
+Frage 20 bleibt davon ausgenommen.
+
 ## Anonymität
 
 Q-040
