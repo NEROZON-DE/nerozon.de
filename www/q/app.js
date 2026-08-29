@@ -69,8 +69,39 @@ const chapterObserver=new IntersectionObserver(entries=>{
 document.querySelectorAll('[data-package]').forEach(section=>chapterObserver.observe(section));
 
 const questionnaire=document.querySelector('#questionnaire');
+const timeDialog=document.querySelector('#time-dialog');
+const startQuestionnaire=document.querySelector('#start-questionnaire');
+let questionnaireTimer=null;
+let questionnaireSubmitted=false;
+let timeReminderShown=false;
+
+function startTwoMinuteTimer(){
+  if(questionnaireTimer||questionnaireSubmitted||timeReminderShown)return;
+  questionnaireTimer=window.setTimeout(()=>{
+    questionnaireTimer=null;
+    if(questionnaireSubmitted||timeReminderShown)return;
+    timeReminderShown=true;
+    if(typeof timeDialog.showModal==='function')timeDialog.showModal();
+    else timeDialog.setAttribute('open','');
+  },120000);
+}
+
+startQuestionnaire.addEventListener('click',startTwoMinuteTimer);
+
+document.querySelector('#time-dialog-continue').addEventListener('click',()=>{
+  timeDialog.close();
+});
+
+document.querySelector('#time-dialog-submit').addEventListener('click',()=>{
+  timeDialog.close();
+  questionnaire.requestSubmit();
+});
+
 questionnaire.addEventListener('submit',e=>{
   e.preventDefault();
+  questionnaireSubmitted=true;
+  if(questionnaireTimer){window.clearTimeout(questionnaireTimer);questionnaireTimer=null;}
+  if(timeDialog.open)timeDialog.close();
   const data=new FormData(questionnaire);
   const payload={questionnaireVersion:'research-20-v1',submittedAt:new Date().toISOString(),answers:{}};
   for(const [key,value] of data.entries()){
