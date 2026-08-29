@@ -1,8 +1,9 @@
-# NEROZON Web Frontend Rules
+# NEROZON Web Frontend – Local Rules
 
 Status: DRAFT
 
-Zusätzlich gelten `/RULES.md`.
+Grundsätzlich gelten die projektweiten Dokumente unter `/docs/`, insbesondere `ARCHITECTURE.md`, `SECURITY.md`, `DESIGN.md`, `DEPLOYMENT.md` und `DEVELOPMENT.md`.
+Diese Datei enthält nur zusätzliche Regeln für `/www`.
 
 WWW-001
 `/www` enthält den vollständig reproduzierbaren öffentlichen Webstand.
