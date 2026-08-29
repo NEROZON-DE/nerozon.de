@@ -3,78 +3,94 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#05070a">
+  <meta name="theme-color" content="#030507">
   <title>NEROZON Research – 20 Fragen</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="hero" id="start">
-    <div class="hero-glow"></div>
-    <div class="brand-lockup" aria-label="NEROZON">
-      <img src="../assets/brand/nerozon-mark.svg" alt="" class="brand-mark">
-      <div class="wordmark">NEROZON</div>
-    </div>
+    <div class="hero-shade"></div>
+    <img src="../nerozon-logo.png" alt="NEROZON" class="hero-logo">
     <button class="scroll-cue" type="button" data-scroll="#intro" aria-label="Zur Einleitung scrollen"><span>↓</span></button>
   </header>
 
   <main>
-    <section class="intro panel" id="intro">
-      <div class="eyebrow">NEROZON Research</div>
-      <h1>Wo steht KI<br>in Ihrem Unternehmen?</h1>
-      <p>20 Fragen. Etwa 2 Minuten. Anonym.</p>
-      <p class="muted">Uns interessiert, was heute funktioniert, was bremst und wo produktive KI echten Wert schaffen kann. Jede Antwort hilft – Sie können jede Frage überspringen.</p>
-      <button class="continue" type="button" data-scroll="#package-1">Los geht’s <span>↓</span></button>
+    <section class="intro panel scenic scenic-reality" id="intro">
+      <div class="content-card intro-copy">
+        <div class="eyebrow">NEROZON Research</div>
+        <h1>Sind Sie zufrieden damit, wie KI heute in Ihrem Unternehmen eingesetzt wird?</h1>
+        <p class="factline">20 Fragen · etwa 2 Minuten · anonym</p>
+        <p class="muted">Uns interessiert, was heute funktioniert, was bremst und wo produktive KI echten Wert schaffen kann. Jede Antwort hilft – jede Frage darf übersprungen werden.</p>
+        <button class="continue" type="button" data-scroll="#package-1">Los geht’s <span>↓</span></button>
+      </div>
     </section>
 
     <form id="questionnaire" novalidate>
-      <section class="question-package package-blue" id="package-1" data-package="1">
-        <div class="package-shell">
-          <div class="package-head"><span class="package-number">01</span><div><div class="eyebrow">Heute</div><h2>Wo steht KI bei Ihnen heute?</h2><p>KI ist in vielen Unternehmen längst angekommen – oft schneller als Regeln, Prozesse und Verantwortlichkeiten.</p></div></div>
-          <div class="questions" id="questions-1"></div>
+      <section class="question-package scenic scenic-reality" id="package-1" data-package="1">
+        <div class="chapter-intro">
+          <span class="package-number">01</span>
+          <div><div class="eyebrow">Realität</div><h2>Wo steht KI bei Ihnen heute?</h2><p>KI ist in vielen Unternehmen längst angekommen – oft schneller als Regeln, Prozesse und Verantwortlichkeiten.</p></div>
         </div>
-      </section>
-      <section class="question-package package-cyan" id="package-2" data-package="2">
-        <div class="package-shell">
-          <div class="package-head"><span class="package-number">02</span><div><div class="eyebrow">Bremsen</div><h2>Was bremst den produktiven Einsatz?</h2><p>Zwischen „wir nutzen ChatGPT“ und einem verlässlichen Einsatz im Unternehmen liegt einiges.</p></div></div>
-          <div class="questions" id="questions-2"></div>
-        </div>
-      </section>
-      <section class="question-package package-teal" id="package-3" data-package="3">
-        <div class="package-shell">
-          <div class="package-head"><span class="package-number">03</span><div><div class="eyebrow">Vertrauen</div><h2>Was müsste eine vertrauenswürdige Lösung können?</h2><p>Produktive KI muss mehr können als gute Antworten liefern. Sie muss sich kontrolliert in das Unternehmen einfügen.</p></div></div>
-          <div class="questions" id="questions-3"></div>
-        </div>
-      </section>
-      <section class="question-package package-green" id="package-4" data-package="4">
-        <div class="package-shell">
-          <div class="package-head"><span class="package-number">04</span><div><div class="eyebrow">Wert</div><h2>Wo entsteht echter Wert?</h2><p>Am Ende zählt nicht, wie viel KI eingesetzt wird – sondern was sie für das Unternehmen leistet.</p></div></div>
-          <div class="questions" id="questions-4"></div>
-        </div>
+        <div class="questions" id="questions-1"></div>
       </section>
 
-      <section class="submit-panel panel" id="finish">
-        <div class="eyebrow">Das war’s.</div>
-        <h2>Danke für Ihren Blick auf KI.</h2>
-        <p class="muted">Sie entscheiden selbst, wie viel Sie beantworten. Beim Absenden werden nur Ihre Antworten übermittelt – ohne Kontaktdaten.</p>
-        <button class="submit-button" type="submit">Antworten anonym absenden <span>→</span></button>
-        <div class="submit-state" id="submit-state" role="status" aria-live="polite"></div>
+      <section class="question-package scenic scenic-friction" id="package-2" data-package="2">
+        <div class="chapter-intro">
+          <span class="package-number">02</span>
+          <div><div class="eyebrow">Bremsen</div><h2>Was bremst den produktiven Einsatz?</h2><p>Zwischen „wir nutzen ChatGPT“ und einem verlässlichen Einsatz im Unternehmen liegt einiges.</p></div>
+        </div>
+        <div class="questions" id="questions-2"></div>
+      </section>
+
+      <section class="question-package scenic scenic-control" id="package-3" data-package="3">
+        <div class="chapter-intro">
+          <span class="package-number">03</span>
+          <div><div class="eyebrow">Vertrauen</div><h2>Was müsste eine vertrauenswürdige Lösung können?</h2><p>Produktive KI muss mehr können als gute Antworten liefern. Sie muss sich kontrolliert in das Unternehmen einfügen.</p></div>
+        </div>
+        <div class="questions" id="questions-3"></div>
+      </section>
+
+      <section class="question-package scenic scenic-value" id="package-4" data-package="4">
+        <div class="chapter-intro">
+          <span class="package-number">04</span>
+          <div><div class="eyebrow">Wert</div><h2>Wo entsteht echter Wert?</h2><p>Am Ende zählt nicht, wie viel KI eingesetzt wird – sondern was sie für das Unternehmen leistet.</p></div>
+        </div>
+        <div class="questions" id="questions-4"></div>
+      </section>
+
+      <section class="submit-panel panel scenic scenic-flow" id="finish">
+        <div class="content-card finish-card">
+          <div class="eyebrow">Das war’s.</div>
+          <h2>Danke für Ihren Blick auf KI.</h2>
+          <p class="muted">Sie entscheiden selbst, wie viel Sie beantworten. Beim Absenden werden nur Ihre Antworten übermittelt – ohne Kontaktdaten.</p>
+          <button class="submit-button" type="submit">Antworten anonym absenden <span>→</span></button>
+          <div class="submit-state" id="submit-state" role="status" aria-live="polite"></div>
+        </div>
       </section>
     </form>
 
     <section class="contact panel" id="contact" hidden>
-      <div class="eyebrow">Optional</div>
-      <h2>Noch etwas, das Sie uns sagen möchten?</h2>
-      <p class="muted">Diese Nachricht ist vollständig von Ihrer anonymen Umfrage getrennt.</p>
-      <form id="contact-form">
-        <label>Ihre Nachricht<textarea name="message" rows="5" placeholder="Ihre Nachricht an NEROZON"></textarea></label>
-        <label>E-Mail <span>optional</span><input type="email" name="email" placeholder="name@unternehmen.de"></label>
-        <button class="contact-button" type="submit">Nachricht senden <span>→</span></button>
-        <div class="submit-state" id="contact-state" role="status" aria-live="polite"></div>
-      </form>
+      <div class="contact-inner">
+        <div class="eyebrow">Optional · separat</div>
+        <h2>Noch etwas, das Sie uns sagen möchten?</h2>
+        <p class="muted">Diese Nachricht ist technisch und fachlich von Ihrer anonymen Umfrage getrennt.</p>
+        <form id="contact-form">
+          <label>Ihre Nachricht<textarea name="message" rows="5" placeholder="Ihre Nachricht an NEROZON"></textarea></label>
+          <label>E-Mail <span>optional</span><input type="email" name="email" placeholder="name@unternehmen.de"></label>
+          <button class="contact-button" type="submit">Nachricht senden <span>→</span></button>
+          <div class="submit-state" id="contact-state" role="status" aria-live="polite"></div>
+        </form>
+      </div>
     </section>
   </main>
 
   <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+  <nav class="chapter-progress" aria-label="Fortschritt">
+    <a href="#package-1" data-chapter="1">01</a><i></i>
+    <a href="#package-2" data-chapter="2">02</a><i></i>
+    <a href="#package-3" data-chapter="3">03</a><i></i>
+    <a href="#package-4" data-chapter="4">04</a>
+  </nav>
   <script src="app.js"></script>
 </body>
 </html>
