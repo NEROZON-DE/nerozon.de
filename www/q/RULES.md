@@ -124,6 +124,10 @@ Q-036
 Bei kurzen Freitextfragen führt `Return` nach der Eingabe sanft zur nächsten Frage, sofern die Frage nicht bewusst als abschließender Freitext ausgelegt ist.
 Frage 20 bleibt davon ausgenommen.
 
+Q-037
+Frage 20 ist auf 4.000 Zeichen begrenzt.
+Ab 3.000 Zeichen wird ein sichtbarer Zeichenzähler eingeblendet, der den aktuellen Stand bis zum Limit anzeigt.
+
 ## Anonymität
 
 Q-040
@@ -161,6 +165,10 @@ Das Kontaktformular erzeugt einen eigenständigen Vorgang ohne fachliche oder te
 
 Q-055
 Wird keine E-Mail-Adresse angegeben, darf die Oberfläche keine persönliche Rückantwort versprechen.
+
+Q-056
+Eine persönliche Nachricht darf nur abgesendet werden, wenn der Nutzer zuvor aktiv bestätigt hat, die verlinkte Datenschutzerklärung gelesen zu haben und der Verarbeitung seiner im Kontaktvorgang angegebenen Daten zugestimmt hat.
+Diese Zustimmung betrifft ausschließlich den separaten Kontaktvorgang und darf nicht mit der anonymen Fragebogen-Submission verknüpft werden.
 
 ## Client und Server
 
