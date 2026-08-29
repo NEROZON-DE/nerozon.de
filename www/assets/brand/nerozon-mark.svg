@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-labelledby="title">
+  <title id="title">NEROZON</title>
+  <defs>
+    <linearGradient id="cyanGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#42DDF4"/>
+      <stop offset="55%" stop-color="#14BFD5"/>
+      <stop offset="100%" stop-color="#008BA4"/>
+    </linearGradient>
+    <linearGradient id="darkGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#52606B"/>
+      <stop offset="100%" stop-color="#18232D"/>
+    </linearGradient>
+    <linearGradient id="foldGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#17303B"/>
+      <stop offset="100%" stop-color="#0B1A22"/>
+    </linearGradient>
+  </defs>
+  <rect width="360" height="420" rx="72" fill="#05070A"/>
+  <path d="M52 350 V74 C52 55 67 40 86 40 C95 40 104 44 111 50 L244 174 V316 L112 193 C100 182 80 190 80 207 V350 C80 366 68 378 52 378 Z" fill="url(#cyanGrad)"/>
+  <path d="M244 115 L294 73 C306 63 324 72 324 88 V350 C324 366 312 378 296 378 H244 Z" fill="url(#darkGrad)"/>
+  <path d="M80 227 L244 378 H296 C307 378 317 372 322 363 L146 201 C125 182 97 192 80 207 Z" fill="url(#foldGrad)" opacity="0.98"/>
+</svg>
