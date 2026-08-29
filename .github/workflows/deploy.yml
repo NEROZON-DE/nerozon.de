@@ -1,17 +1,18 @@
-name: Deploy nerozon.de
+name: Deploy DEV1
 
 on:
   push:
     branches:
-      - main
+      - dev1
     paths:
       - 'www/**'
       - 'api/**'
       - 'deploy/**'
       - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 concurrency:
-  group: nerozon-production
+  group: nerozon-dev1
   cancel-in-progress: false
 
 jobs:
@@ -19,41 +20,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # ============================================================
-      # Checkout
-      # ============================================================
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      # ============================================================
-      # Deployment Controller
-      # ============================================================
 
       - name: Prepare deployment controller
         run: |
           mkdir -p controller
           cp -R deploy/. controller/
-
           find controller -type d -exec chmod 755 {} \;
           find controller -type f -exec chmod 644 {} \;
 
       - name: Deploy controller
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
           local_path: './controller/*'
           remote_path: '/deploy/'
           sftp_only: true
-
-
-      # ============================================================
-      # WWW TOKEN
-      # ============================================================
 
       - name: Create WWW deployment token
         id: token_www
@@ -61,99 +46,52 @@ jobs:
           TIMESTAMP=$(date +%s%3N)
           RANDOM_TOKEN=$(openssl rand -hex 16)
           TOKEN="dpl-${TIMESTAMP}-${RANDOM_TOKEN}"
-
           mkdir -p trigger-www
           touch "trigger-www/${TOKEN}"
-
           echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
 
       - name: Upload WWW deployment token
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
           local_path: './trigger-www/*'
           remote_path: '/'
           sftp_only: true
 
-
-      # ============================================================
-      # WWW PREPARE
-      # ============================================================
-
       - name: Prepare WWW staging
         run: |
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 30 \
-            --request POST \
-            "https://deploy.nerozon.de/index.php?action=prepare&component=www&token=${{ steps.token_www.outputs.token }}"
-
-
-      # ============================================================
-      # WWW UPLOAD
-      # ============================================================
+          curl --fail --silent --show-error --max-time 30 --request POST \
+            "https://deploy-dev1.nerozon.de/index.php?action=prepare&component=www&token=${{ steps.token_www.outputs.token }}"
 
       - name: Prepare WWW package
         run: |
           mkdir -p package-www
           cp -R www/. package-www/
-
           find package-www -type f \( -name 'RULES.md' -o -name '*-RULES.md' \) -delete
-
           find package-www -type d -exec chmod 755 {} \;
           find package-www -type f -exec chmod 644 {} \;
 
       - name: Upload WWW staging
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
           local_path: './package-www/*'
           remote_path: '/www-deploy/'
           sftp_only: true
 
-
-      # ============================================================
-      # WWW ACTIVATE
-      # ============================================================
-
       - name: Activate WWW
         run: |
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 30 \
-            --request POST \
-            "https://deploy.nerozon.de/index.php?action=deploy&component=www&token=${{ steps.token_www.outputs.token }}"
-
-
-      # ============================================================
-      # WWW SMOKE TEST
-      # ============================================================
+          curl --fail --silent --show-error --max-time 30 --request POST \
+            "https://deploy-dev1.nerozon.de/index.php?action=deploy&component=www&token=${{ steps.token_www.outputs.token }}"
 
       - name: Smoke test WWW
         run: |
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 15 \
-            "https://nerozon.de/" \
-            > /dev/null
-
-
-      # ============================================================
-      # API
-      #
-      # API wird nur deployed, wenn mindestens eine Datei
-      # im lokalen api-Verzeichnis vorhanden ist.
-      # ============================================================
+          curl --fail --silent --show-error --max-time 15 \
+            "https://dev1.nerozon.de/" > /dev/null
 
       - name: Check API content
         id: check_api
@@ -164,11 +102,6 @@ jobs:
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
-
-      # ============================================================
-      # API TOKEN
-      # ============================================================
-
       - name: Create API deployment token
         if: steps.check_api.outputs.deploy == 'true'
         id: token_api
@@ -176,52 +109,33 @@ jobs:
           TIMESTAMP=$(date +%s%3N)
           RANDOM_TOKEN=$(openssl rand -hex 16)
           TOKEN="dpl-${TIMESTAMP}-${RANDOM_TOKEN}"
-
           mkdir -p trigger-api
           touch "trigger-api/${TOKEN}"
-
           echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
 
       - name: Upload API deployment token
         if: steps.check_api.outputs.deploy == 'true'
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
           local_path: './trigger-api/*'
           remote_path: '/'
           sftp_only: true
 
-
-      # ============================================================
-      # API PREPARE
-      # ============================================================
-
       - name: Prepare API staging
         if: steps.check_api.outputs.deploy == 'true'
         run: |
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 30 \
-            --request POST \
-            "https://deploy.nerozon.de/index.php?action=prepare&component=api&token=${{ steps.token_api.outputs.token }}"
-
-
-      # ============================================================
-      # API UPLOAD
-      # ============================================================
+          curl --fail --silent --show-error --max-time 30 --request POST \
+            "https://deploy-dev1.nerozon.de/index.php?action=prepare&component=api&token=${{ steps.token_api.outputs.token }}"
 
       - name: Prepare API package
         if: steps.check_api.outputs.deploy == 'true'
         run: |
           mkdir -p package-api
           cp -R api/. package-api/
-
           find package-api -type f \( -name 'RULES.md' -o -name '*-RULES.md' \) -delete
-
           find package-api -type d -exec chmod 755 {} \;
           find package-api -type f -exec chmod 644 {} \;
 
@@ -229,25 +143,15 @@ jobs:
         if: steps.check_api.outputs.deploy == 'true'
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
           local_path: './package-api/*'
           remote_path: '/api-deploy/'
           sftp_only: true
 
-
-      # ============================================================
-      # API ACTIVATE
-      # ============================================================
-
       - name: Activate API
         if: steps.check_api.outputs.deploy == 'true'
         run: |
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --max-time 30 \
-            --request POST \
-            "https://deploy.nerozon.de/index.php?action=deploy&component=api&token=${{ steps.token_api.outputs.token }}"
+          curl --fail --silent --show-error --max-time 30 --request POST \
+            "https://deploy-dev1.nerozon.de/index.php?action=deploy&component=api&token=${{ steps.token_api.outputs.token }}"
