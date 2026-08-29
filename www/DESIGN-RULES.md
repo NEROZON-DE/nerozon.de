@@ -23,6 +23,10 @@ DESIGN-004
 Markenassets werden nicht innerhalb einzelner Module dupliziert.
 Varianten werden zentral im Brand-Asset-Bereich abgelegt und eindeutig benannt.
 
+DESIGN-005
+Das echte freigegebene NEROZON-Logo ist gegenüber nachgebauter HTML-Typografie oder abgeleiteten Platzhalter-Logos zu bevorzugen.
+Falls das finale Logo noch nicht im Repository liegt, wird die Stelle als Austauschpunkt markiert und nicht als endgültiges Markendesign behandelt.
+
 ## Layout und Dramaturgie
 
 DESIGN-010
@@ -43,6 +47,28 @@ DESIGN-014
 Scroll-basierte Übergänge dürfen überraschend wirken, solange Orientierung, Lesbarkeit und Bedienbarkeit erhalten bleiben.
 Die visuelle Inszenierung darf sich an hochwertigen modernen Produktseiten orientieren, ohne deren konkrete Gestaltung zu kopieren.
 
+DESIGN-015
+Hintergründe sollen nicht nur Farbe liefern, sondern Atmosphäre, Tiefe und thematische Orientierung erzeugen.
+Für hochwertige Seiten sind abstrakte, dunkle NEROZON-Hintergrundbilder oder -Texturen gegenüber einfachen Farbverläufen zu bevorzugen.
+
+DESIGN-016
+Der Seitenrhythmus soll eher einer Produktstory als einem Formular folgen.
+Ein Abschnitt führt den Nutzer sichtbar weiter; die Gestaltung soll nicht wie eine Sammlung gleichförmiger Eingabekarten wirken.
+
+## Farbe, Kontrast und Bildwirkung
+
+DESIGN-017
+Der Grundcharakter bleibt überwiegend schwarz, anthrazit und weiß.
+NEROZON-Farben werden gezielt als Licht, Fokus, Fortschritt oder aktive Auswahl eingesetzt, nicht als flächige Buntcodierung ganzer Bereiche.
+
+DESIGN-018
+Farbflächen, Glows und Glassmorphism dürfen eingesetzt werden, aber nicht zum dominierenden Stilmittel werden.
+Premiumwirkung entsteht primär durch Kontrast, Typografie, Abstand, Bildtiefe und klare Hierarchie.
+
+DESIGN-019
+Hintergrundbilder müssen so eingebunden werden, dass Text und Interaktion auch bei kleinen Displays sicher lesbar bleiben.
+Dunkle Overlays, Masken und Vignetten sind zulässig und erwünscht.
+
 ## Interaktion
 
 DESIGN-020
@@ -61,6 +87,10 @@ Formulare sollen sich in den Seitenfluss integrieren und nicht wie ein technisch
 DESIGN-024
 Wo eine Auswahl schnell erfassbar sein soll, dürfen Antwortflächen mit Icons oder einfachen grafischen Symbolen arbeiten.
 Das Symbol unterstützt die Bedeutung, ersetzt aber keine eindeutige textliche Beschriftung.
+
+DESIGN-025
+Antwortflächen sollen ausreichend groß, klar getrennt und ruhig angeordnet sein.
+Schnelle Bedienung ist wichtiger als maximale Informationsdichte.
 
 ## Typografie und Lesbarkeit
 
@@ -88,6 +118,10 @@ Animationen müssen reduzierte Bewegung respektieren, wenn das Betriebssystem bz
 
 DESIGN-043
 Die visuelle Inszenierung darf die semantische Struktur, Tastaturbedienung und verständliche Zustände nicht beeinträchtigen.
+
+DESIGN-044
+Fortschrittsanzeigen müssen auffindbar und ausreichend kräftig sein.
+Ein dünner, kaum wahrnehmbarer Fortschrittsbalken ist zu vermeiden.
 
 ## Gestalterischer Freiraum
 
