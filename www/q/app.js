@@ -1,10 +1,10 @@
 const questions=[
 {q:'Wird generative KI in Ihrem Unternehmen heute bereits genutzt?',type:'single',o:[['✦','Ja, regelmäßig'],['◐','Teilweise / punktuell'],['○','Noch nicht']]},
-{q:'In welchen Bereichen wird KI eingesetzt?',type:'multi',o:[['▦','Office'],['⌘','IT'],['↗','Vertrieb'],['◌','Kundenservice'],['◇','Entwicklung'],['⌁','Analyse'],['＋','Weitere']]},
+{q:'In welchen Bereichen wird KI eingesetzt?',type:'multi',o:[['▦','Office'],['⌘','IT'],['↗','Vertrieb'],['◌','Kundenservice'],['◇','Entwicklung'],['⌁','Analyse'],['＋','Weitere',{freeText:true}]]},
 {q:'Erfolgt diese Nutzung überwiegend offiziell freigegeben oder auch eigenständig durch Mitarbeitende?',type:'single',o:[['✓','Überwiegend freigegeben'],['⇄','Beides'],['↯','Überwiegend eigenständig'],['?','Kann ich nicht beurteilen']]},
 {q:'Gibt es bereits KI-Anwendungen, die regelmäßig in Geschäftsprozessen eingesetzt werden?',type:'single',o:[['✓','Ja'],['◐','Vereinzelt'],['○','Nein']]},
 {q:'Wie wichtig ist ein stärkerer KI-Einsatz für Ihr Unternehmen in den nächsten 12 Monaten?',type:'scale',o:[['1','Unwichtig'],['2','Eher unwichtig'],['3','Mittel'],['4','Wichtig'],['5','Sehr wichtig']]},
-{q:'Was sind aktuell die größten Hindernisse für einen breiteren KI-Einsatz?',type:'multi',o:[['⌾','Datenschutz'],['⬡','Informationssicherheit'],['⇄','Integration'],['€','Kosten'],['◇','Qualität'],['◎','Know-how'],['§','Regulierung'],['◌','Akzeptanz'],['＋','Weitere']]},
+{q:'Was sind aktuell die größten Hindernisse für einen breiteren KI-Einsatz?',type:'multi',o:[['⌾','Datenschutz'],['⬡','Informationssicherheit'],['⇄','Integration'],['€','Kosten'],['◇','Qualität'],['◎','Know-how'],['§','Regulierung'],['◌','Akzeptanz'],['＋','Weitere',{freeText:true}]]},
 {q:'Gibt es Daten oder Prozesse, bei denen Sie KI gerne einsetzen würden, es aus Sicherheits- oder Datenschutzgründen aber nicht tun?',type:'single',o:[['✓','Ja'],['◐','Vielleicht / unklar'],['○','Nein']]},
 {q:'Wie sicher können Sie heute beurteilen, welche Unternehmensdaten an welche KI-Dienste übergeben werden dürfen?',type:'scale',o:[['1','Sehr unsicher'],['2','Eher unsicher'],['3','Teils / teils'],['4','Eher sicher'],['5','Sehr sicher']]},
 {q:'Wie groß ist die Sorge, durch KI die Kontrolle über Daten oder Geschäftsprozesse zu verlieren?',type:'scale',o:[['1','Keine Sorge'],['2','Gering'],['3','Mittel'],['4','Groß'],['5','Sehr groß']]},
@@ -14,10 +14,10 @@ const questions=[
 {q:'Wie wichtig wäre eine zentrale Kontrolle darüber, welche Daten für welchen KI-Dienst verwendet werden dürfen?',type:'scale',o:[['1','Unwichtig'],['2','Eher unwichtig'],['3','Mittel'],['4','Wichtig'],['5','Sehr wichtig']]},
 {q:'Wie wichtig ist die Nachvollziehbarkeit dessen, was eine KI mit Unternehmensdaten getan hat?',type:'scale',o:[['1','Unwichtig'],['2','Eher unwichtig'],['3','Mittel'],['4','Wichtig'],['5','Sehr wichtig']]},
 {q:'Würden Sie KI mehr operative Aufgaben übertragen, wenn Berechtigungen, Datenzugriffe und Ergebnisse kontrollierbar wären?',type:'single',o:[['✓','Ja'],['◐','Wahrscheinlich'],['?','Unentschieden'],['○','Nein']]},
-{q:'Bei welchen Aufgaben erwarten Sie aktuell den größten wirtschaftlichen Nutzen durch KI?',type:'multi',o:[['⚙','Automation'],['⌁','Analyse'],['◌','Service'],['↗','Vertrieb'],['✎','Dokumentation'],['◇','Entwicklung'],['＋','Weitere']]},
+{q:'Bei welchen Aufgaben erwarten Sie aktuell den größten wirtschaftlichen Nutzen durch KI?',type:'multi',o:[['⚙','Automation'],['⌁','Analyse'],['◌','Service'],['↗','Vertrieb'],['✎','Dokumentation'],['◇','Entwicklung'],['＋','Weitere',{freeText:true}]]},
 {q:'Welche wiederkehrenden Tätigkeiten würden Sie am liebsten als Erstes automatisieren?',type:'text',placeholder:'Kurze Stichworte genügen …'},
 {q:'Wäre für Sie eine Lösung interessanter, die vorhandene Systeme verbindet, statt weitere Insellösungen einzuführen?',type:'single',o:[['✓','Ja'],['◐','Kommt darauf an'],['○','Nein']]},
-{q:'Was wäre für Sie der wichtigste messbare Erfolg eines KI-Projekts?',type:'single',o:[['◷','Zeitersparnis'],['€','Kosten'],['◇','Qualität'],['⚡','Geschwindigkeit'],['◎','Transparenz'],['☺','Mitarbeiterentlastung'],['＋','Anderes']]},
+{q:'Was wäre für Sie der wichtigste messbare Erfolg eines KI-Projekts?',type:'single',o:[['◷','Zeitersparnis'],['€','Kosten'],['◇','Qualität'],['⚡','Geschwindigkeit'],['◎','Transparenz'],['☺','Mitarbeiterentlastung'],['＋','Anderes',{freeText:true}]]},
 {q:'Wenn ein sicherer produktiver KI-Einsatz möglich wäre: Wo würden Sie morgen anfangen?',type:'text',placeholder:'Was wäre Ihr erster Anwendungsfall?',maxLength:4000,counterFrom:3000}
 ];
 
@@ -56,11 +56,24 @@ function renderQuestion(item,index){
     wrap.append(area);return wrap;
   }
   const answers=document.createElement('div');answers.className='answers';
-  item.o.forEach(([icon,label],i)=>{
+  item.o.forEach(([icon,label,options],i)=>{
     const cell=document.createElement('div');cell.className='answer';
+    if(options?.freeText)cell.classList.add('answer-with-text');
     const input=document.createElement('input');input.type=item.type==='multi'?'checkbox':'radio';input.name=item.type==='multi'?`q${number}[]`:`q${number}`;input.id=`q${number}-${i}`;input.value=label;
+    if(options?.freeText)input.dataset.freeText='true';
     const lab=document.createElement('label');lab.htmlFor=input.id;lab.innerHTML=`<span class="answer-icon" aria-hidden="true">${icon}</span><span>${label}</span>`;
-    cell.append(input,lab);answers.append(cell);
+    cell.append(input,lab);
+    if(options?.freeText){
+      const detail=document.createElement('textarea');
+      detail.className='answer-detail';detail.name=`q${number}_other`;detail.rows=2;detail.placeholder='Bitte kurz ergänzen …';detail.hidden=true;detail.disabled=true;detail.setAttribute('aria-label',`${label} – Ergänzung`);
+      input.addEventListener('change',()=>{
+        const active=input.checked;
+        detail.hidden=!active;detail.disabled=!active;
+        if(active)window.setTimeout(()=>detail.focus({preventScroll:true}),80);
+      });
+      cell.append(detail);
+    }
+    answers.append(cell);
   });
   wrap.append(answers);return wrap;
 }
@@ -76,7 +89,12 @@ function scrollToNextQuestion(currentQuestion){
 }
 
 document.querySelectorAll('.question[data-type="single"] input[type="radio"], .question[data-type="scale"] input[type="radio"]').forEach(input=>{
-  input.addEventListener('change',()=>scrollToNextQuestion(input.closest('.question')));
+  input.addEventListener('change',()=>{
+    const question=input.closest('.question');
+    if(input.dataset.freeText==='true')return;
+    question.querySelectorAll('.answer-detail').forEach(detail=>{detail.hidden=true;detail.disabled=true;detail.value='';});
+    scrollToNextQuestion(question);
+  });
 });
 
 document.querySelectorAll('.question[data-question="10"] .text-answer, .question[data-question="17"] .text-answer').forEach(area=>{
