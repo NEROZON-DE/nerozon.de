@@ -1,0 +1,130 @@
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: nerozon-de-backend
+  description: Backend system for nerozon.de.
+spec:
+  owner: group:default/nerozon-engineering
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: api-http-connector
+  description: Reusable public HTTP boundary and transport adapter.
+  annotations:
+    nerozon.de/status: draft
+    nerozon.de/review-architecture: pending
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+  dependsOn:
+    - component:default/questionnaire-business-logic
+  providesApis:
+    - questionnaire-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: questionnaire-business-logic
+  description: Domain use case for anonymous questionnaire submission.
+  annotations:
+    nerozon.de/status: draft
+    nerozon.de/review-architecture: pending
+    nerozon.de/review-testability: pending
+spec:
+  type: library
+  lifecycle: experimental
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+  dependsOn:
+    - component:default/questionnaire-data-model
+    - component:default/questionnaire-repository
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: questionnaire-data-model
+  description: Versioned domain model and validation contract for questionnaire submissions.
+  annotations:
+    nerozon.de/status: draft
+    nerozon.de/review-data-model: pending
+spec:
+  type: library
+  lifecycle: experimental
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: questionnaire-repository
+  description: Domain persistence adapter for questionnaire submissions.
+  annotations:
+    nerozon.de/status: draft
+    nerozon.de/review-data-model: pending
+    nerozon.de/review-testability: pending
+spec:
+  type: library
+  lifecycle: experimental
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+  dependsOn:
+    - component:default/questionnaire-data-model
+    - component:default/db-connector
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: db-connector
+  description: Reusable relational database connector and transaction boundary.
+  annotations:
+    nerozon.de/status: draft
+    nerozon.de/review-architecture: pending
+    nerozon.de/review-testability: pending
+spec:
+  type: library
+  lifecycle: experimental
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+  dependsOn:
+    - resource:default/questionnaire-database
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: questionnaire-database
+  description: Relational persistence resource for anonymous questionnaire primary data.
+  annotations:
+    nerozon.de/status: blocked
+    nerozon.de/open-question: database-engine
+spec:
+  type: database
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: questionnaire-api
+  description: Public API for anonymous questionnaire submissions.
+  annotations:
+    nerozon.de/status: draft
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: group:default/nerozon-engineering
+  system: nerozon-de-backend
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: NEROZON Questionnaire API
+      version: 0.1.0
+    paths:
+      /v1/questionnaire/submissions:
+        post:
+          summary: Submit an anonymous questionnaire
+          responses:
+            '201':
+              description: Accepted and stored
