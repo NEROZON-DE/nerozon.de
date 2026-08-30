@@ -12,7 +12,7 @@ Scope: dev3 questionnaire PoC
 Pflichtfelder:
 
 - `submission_id`: serverseitig erzeugte technische UUID/gleichwertiger nicht bedeutungstragender Identifier.
-- `questionnaire_id`: stabiler fachlicher Bezeichner, initial `Q-09-2026`.
+- `questionnaire_id`: stabiler fachlicher Bezeichner, initial `S092026`.
 - `questionnaire_version`: Version des fachlichen Fragenstands, initial `20260830`.
 - `schema_version`: Version dieses Payload-Schemas, initial `1`.
 - `submitted_at`: serverseitiger UTC-Zeitpunkt.
@@ -32,32 +32,44 @@ Nicht Bestandteil des fachlichen Modells:
 
 Felder:
 
-- `question_id`: Integer 1–20 für Questionnaire `Q-09-2026`, Version `20260830`.
+- `question_id`: stabiler technischer Fragen-Identifier nach dem Schema `S092026Qxx`, z. B. `S092026Q02`.
 - `type`: `single_choice`, `multi_choice`, `scale`, `short_text`.
-- `value`: typabhängiger Wert.
+- `value`: typabhängiger Wert; Auswahlantworten verwenden stabile Answer-IDs nach dem Schema `S092026QxxAyy`, z. B. `S092026Q02A03`.
 
 Regeln:
 
 - Eine Frage darf höchstens einmal im `answers`-Array vorkommen.
 - Unbeantwortete Fragen werden weggelassen; sie sind kein Fehler.
 - Ein vollständig leeres `answers`-Array ist zulässig.
-- `single_choice`: genau ein erlaubter Optionswert.
-- `multi_choice`: Liste eindeutiger erlaubter Optionswerte; leer wird wie unbeantwortet behandelt.
-- `scale`: Integer 1–5.
-- `short_text`: String; Whitespace-only wird wie unbeantwortet behandelt.
+- `single_choice`: genau eine erlaubte Answer-ID der jeweiligen Frage.
+- `multi_choice`: Liste eindeutiger erlaubter Answer-IDs der jeweiligen Frage; leer wird wie unbeantwortet behandelt.
+- `scale`: die erlaubten Skalenwerte werden ebenfalls versionsgebunden eindeutig der jeweiligen Frage zugeordnet; sofern als Auswahl modelliert, gilt dasselbe Answer-ID-Schema.
+- `short_text`: String; Whitespace-only wird wie unbeantwortet behandelt und benötigt keine Answer-ID.
 - Frage 20: maximal 4.000 Zeichen.
 - Für Fragen 10 und 17 gilt im PoC ebenfalls maximal 4.000 Zeichen, solange kein engeres fachliches Limit spezifiziert ist.
-- Unbekannte `question_id`, unbekannte Antworttypen und nicht erlaubte Optionswerte werden abgewiesen.
+- Unbekannte `question_id`, unbekannte Antworttypen und nicht erlaubte Answer-IDs werden abgewiesen.
 
-## Canonical Values
+## Canonical IDs
 
-Persistiert werden stabile maschinenlesbare Optionswerte, nicht ausschließlich die angezeigten deutschen Texte. Die Zuordnung Text ↔ Wert wird versionsgebunden definiert. Beispiel: `q1_regular`, `q1_partial`, `q1_not_yet`, `q1_unknown`.
+Für Questionnaire `S092026` gilt ein deterministisches technisches ID-Modell:
 
-Devin darf die vollständigen canonical values aus `/www/q/20-FRAGEN-SPEC.md` deterministisch ableiten und in einer versionsgebundenen Definition ablegen. Die sichtbaren Texte bleiben durch die bestehende SPEC autoritativ.
+- Questionnaire: `S092026`
+- Frage 1: `S092026Q01`
+- Frage 2: `S092026Q02`
+- Antwort 1 auf Frage 2: `S092026Q02A01`
+- Antwort 3 auf Frage 2: `S092026Q02A03`
+
+`Qxx` und `Ayy` sind zweistellig mit führender Null. Die Nummerierung folgt der verbindlichen Reihenfolge in `/www/q/20-FRAGEN-SPEC.md`.
+
+Persistiert werden diese stabilen IDs, nicht ausschließlich die angezeigten deutschen Texte. Die sichtbaren Texte bleiben durch die bestehende SPEC autoritativ und sind versionsgebunden den IDs zugeordnet.
+
+Freitextantworten besitzen keine künstliche `Axx`-ID; ihr `question_id` identifiziert die Frage und `value` enthält den Text.
+
+Damit ist die technische Ableitung der Auswahlwerte festgelegt und nicht mehr Devin zur freien Benennung überlassen.
 
 ## Versionierung
 
-- `questionnaire_id = Q-09-2026` identifiziert diesen Fragebogen fachlich stabil.
+- `questionnaire_id = S092026` identifiziert diesen Fragebogen fachlich stabil.
 - `questionnaire_version = 20260830` identifiziert den am 30.08.2026 festgelegten Fragen-, Options- und Bedeutungsstand.
 - `schema_version` identifiziert die technische Payload-Struktur.
 - Bestehende gespeicherte Payloads dürfen durch spätere Änderungen nicht mehrdeutig werden.
@@ -81,9 +93,10 @@ Operative Indexfelder dürfen nur aufgenommen werden, wenn ein konkreter Zugriff
 Sina prüft mindestens:
 
 - vollständige Abbildung aller 20 Fragetypen/Optionen.
+- korrekte deterministische Zuordnung `S092026QxxAyy` zur Reihenfolge der freigegebenen Fragen und Optionen.
 - leere und partielle Submission.
 - Typvalidierung.
 - Dubletten von question_id.
 - Versionsregeln.
 - Trennung fachlicher Daten von technischer Telemetrie/Kontaktdaten.
-- Reproduzierbarkeit der canonical values aus dem freigegebenen Fragenstand.
+- Reproduzierbarkeit der canonical IDs aus dem freigegebenen Fragenstand.
