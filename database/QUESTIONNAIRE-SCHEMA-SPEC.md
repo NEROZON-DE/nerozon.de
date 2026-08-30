@@ -7,6 +7,21 @@ Scope: dev3 questionnaire PoC
 
 Die Datenbank speichert anonyme Questionnaire-Primärdaten versioniert und reproduzierbar. Fachliche Antworten liegen primär als JSON-Payload vor; nur konkret benötigte operative Felder werden relational geführt.
 
+## Runtime / Datenbankplattform
+
+Für `nerozon.de` ist die produktive relationale Datenbank festgelegt:
+
+- Provider: IONOS Webhosting Pro
+- Engine: MariaDB 11.8
+- Host: `db5021309120.hosting-data.io`
+- Port: `3306`
+- Datenbankname: `dbs16070822`
+- Benutzername: `dbu4674652`
+
+Das Passwort/Secret wird nicht im Repository dokumentiert und ausschließlich über geschützte Runtime-Konfiguration bereitgestellt.
+
+Diese Werte beschreiben die aktuelle Produktionsressource. Fachliche Komponenten dürfen nicht direkt von diesen konkreten Verbindungswerten abhängen; der Zugriff erfolgt über `db-connector`.
+
 ## Initiales Schema
 
 Tabelle: `questionnaire_submissions`
@@ -30,13 +45,13 @@ Keine E-Mail, Nachricht, IP-Adresse, User-Agent oder Contact-ID in dieser Tabell
 
 ## Migrationen
 
-Devin erstellt reproduzierbare Dateien unter `/database` mit eindeutiger Reihenfolge:
+Devin erstellt reproduzierbare MariaDB-11.8-kompatible Dateien unter `/database` mit eindeutiger Reihenfolge:
 
 - INIT für erstmalige Erstellung.
 - spätere additive/ändernde Schritte als MIGRATION.
 - CLEANUP/DROP separat und niemals im normalen Runtime-Request.
 
-Die konkrete SQL-Dialektwahl richtet sich nach der tatsächlich verfügbaren IONOS-Datenbank und ist derzeit ein BLOCKER für ausführbaren SQL-Code, nicht für das logische Schema.
+Der ausführbare SQL-Dialekt ist MariaDB 11.8. MariaDB-spezifische Features dürfen verwendet werden, wenn sie einen konkreten Nutzen haben; unnötige Plattformkopplung ist zu vermeiden.
 
 ## Constraints
 
@@ -50,7 +65,7 @@ Questionnaire-Primärdaten und technische Betriebs-/Abuse-Daten müssen logisch 
 
 ## Tests
 
-- INIT auf leerer DB ausführbar.
+- INIT auf leerer MariaDB-11.8-kompatibler DB ausführbar.
 - erneute kontrollierte Ausführung erzeugt keinen unbemerkten inkonsistenten Stand.
 - Insert einer gültigen leeren und vollständigen Submission.
 - Constraint-/Duplicate-ID-Verhalten definiert.
