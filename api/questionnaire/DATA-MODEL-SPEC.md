@@ -12,8 +12,8 @@ Scope: dev3 questionnaire PoC
 Pflichtfelder:
 
 - `submission_id`: serverseitig erzeugte technische UUID/gleichwertiger nicht bedeutungstragender Identifier.
-- `questionnaire_id`: stabiler fachlicher Bezeichner, initial `20-fragen`.
-- `questionnaire_version`: Version des fachlichen Fragenstands.
+- `questionnaire_id`: stabiler fachlicher Bezeichner, initial `Q-09-2026`.
+- `questionnaire_version`: Version des fachlichen Fragenstands, initial `20260830`.
 - `schema_version`: Version dieses Payload-Schemas, initial `1`.
 - `submitted_at`: serverseitiger UTC-Zeitpunkt.
 - `answers`: Liste von `QuestionnaireAnswer`, darf leer sein.
@@ -32,7 +32,7 @@ Nicht Bestandteil des fachlichen Modells:
 
 Felder:
 
-- `question_id`: Integer 1–20 für Version `20-fragen`.
+- `question_id`: Integer 1–20 für Questionnaire `Q-09-2026`, Version `20260830`.
 - `type`: `single_choice`, `multi_choice`, `scale`, `short_text`.
 - `value`: typabhängiger Wert.
 
@@ -57,7 +57,8 @@ Devin darf die vollständigen canonical values aus `/www/q/20-FRAGEN-SPEC.md` de
 
 ## Versionierung
 
-- `questionnaire_version` identifiziert Fragen, Optionen und Bedeutung.
+- `questionnaire_id = Q-09-2026` identifiziert diesen Fragebogen fachlich stabil.
+- `questionnaire_version = 20260830` identifiziert den am 30.08.2026 festgelegten Fragen-, Options- und Bedeutungsstand.
 - `schema_version` identifiziert die technische Payload-Struktur.
 - Bestehende gespeicherte Payloads dürfen durch spätere Änderungen nicht mehrdeutig werden.
 - Eine Änderung nur der sichtbaren Darstellung ohne Bedeutungsänderung erzwingt nicht automatisch eine neue Schema-Version.
