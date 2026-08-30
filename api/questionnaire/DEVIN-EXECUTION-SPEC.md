@@ -22,6 +22,14 @@ Devin implementiert den Backend-Pfad für die anonyme 20-Fragen-Submission entsp
 
 Devin ändert keine RULES oder SPEC still, um eine Implementierung passend zu machen. Unauflösbare Konflikte werden als Blocker gemeldet.
 
+## Feste Questionnaire-Identität
+
+- `questionnaire_id = Q-09-2026`
+- `questionnaire_version = 20260830`
+- `schema_version = 1`
+
+Diese Werte werden nicht deploymentabhängig verändert.
+
 ## Erwartete Implementierungsartefakte
 
 Mindestens:
@@ -59,10 +67,6 @@ Der Build ist für diesen Scope technisch vollständig, wenn:
 
 Für ausführbare Migration und Connector-Konfiguration muss feststehen, welche relationale Datenbank im IONOS-Setup tatsächlich verwendet wird (z. B. MySQL/MariaDB inklusive verfügbarer Version). Das logische Schema ist davon unabhängig beschrieben.
 
-### B-002 Questionnaire-Version
-
-Der freigegebene Fragenstand benötigt einen stabilen maschinenlesbaren `questionnaire_version` Wert. Dieser darf nicht bei jedem Deployment wechseln.
-
 ### B-003 Canonical answer values
 
 Für alle Auswahloptionen müssen stabile maschinenlesbare Werte verbindlich festgelegt werden, damit Frontend, API und gespeicherte historische Daten dieselbe Semantik verwenden. Die sichtbaren Texte in `20-FRAGEN-SPEC.md` sind bereits fachlich freigegeben; die technischen Keys fehlen noch.
@@ -70,6 +74,15 @@ Für alle Auswahloptionen müssen stabile maschinenlesbare Werte verbindlich fes
 ### B-004 Ownership-Entity
 
 Die Backstage-YAML verwendet vorläufig `group:default/nerozon-engineering`. Vor echtem Backstage-Import muss geklärt werden, welcher vorhandene GitHub-/Backstage-Group-Name Eigentümer dieser Komponenten ist. Dies blockiert nicht den PHP-Build, aber den validen Katalogimport.
+
+## Erledigte ehemalige Blocker
+
+### B-002 Questionnaire-Version — RESOLVED
+
+Festgelegt:
+
+- `questionnaire_id = Q-09-2026`
+- `questionnaire_version = 20260830`
 
 ## NON-BLOCKER / Review-Entscheidungen
 
@@ -120,4 +133,4 @@ Prüfe:
 
 ## Ready-for-Devin-Regel für diesen PoC
 
-`GO` ist sinnvoll, sobald B-001 bis B-003 entschieden sind. B-004 muss spätestens vor Backstage-Import aufgelöst sein.
+`GO` ist sinnvoll, sobald B-001 und B-003 entschieden sind. B-004 muss spätestens vor Backstage-Import aufgelöst sein.
