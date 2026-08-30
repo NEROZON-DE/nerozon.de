@@ -30,6 +30,26 @@ Devin ändert keine RULES oder SPEC still, um eine Implementierung passend zu ma
 
 Diese Werte werden nicht deploymentabhängig verändert.
 
+## Runtime / Secrets
+
+Die produktive Datenbank ist IONOS MariaDB 11.8. Die nicht geheimen Verbindungsparameter stehen in `/database/QUESTIONNAIRE-SCHEMA-SPEC.md`.
+
+Devin MUSS für die Runtime-Konfiguration eine versionierte Beispiel-/Contract-Datei `secret.example.php` vorsehen, die ausschließlich die erwartete Struktur und sichere Platzhalter enthält.
+
+Der echte Secret-Stand wird von Rainer manuell per SFTP als `Secret.php` unter `dev3.nerozon.de/config` angelegt. Die realen Zugangsdaten stammen aus seinem Vault.
+
+Verbindlich:
+
+- `Secret.php` wird niemals in GitHub erzeugt, committed oder als Build-/Deployment-Artefakt aus dem Repository bereitgestellt.
+- `secret.example.php` enthält niemals echte Credentials.
+- Runtime-Code liest DB-Credentials ausschließlich über die definierte Config-/Secret-Grenze.
+- Fehlt `Secret.php` oder ein erforderlicher Wert, muss die Anwendung klar und sicher fehlschlagen; es gibt keinen Fallback auf Beispielwerte, Default-Credentials oder hardcodierte Zugangsdaten.
+- Secrets dürfen nicht in Logs, Exceptions oder HTTP-Responses erscheinen.
+- Deployments dürfen eine vorhandene serverseitige `Secret.php` nicht überschreiben oder löschen.
+- Tests verwenden eigene Testkonfiguration/Fixtures und niemals Production-Secrets.
+
+Devin dokumentiert nach Implementierung ausschließlich, welche Keys Rainer in `Secret.php` eintragen muss; die Werte selbst werden nicht angefordert oder dokumentiert.
+
 ## Erwartete Implementierungsartefakte
 
 Mindestens:
@@ -40,6 +60,7 @@ Mindestens:
 - `questionnaire-repository` Implementierung.
 - generischer `db-connector`.
 - generischer `api-http-connector` / Routing-Grenze.
+- versionierte `secret.example.php` und Config-/Secret-Loader gemäß obigem Contract.
 - INIT-Migration für `questionnaire_submissions`.
 - Unit-Tests für Model, Business Logic, Repository-Mapping, DB Connector und HTTP-Mapping.
 - Integrationstest HTTP → Business → Repository → Testdatenbank.
@@ -60,12 +81,10 @@ Der Build ist für diesen Scope technisch vollständig, wenn:
 8. bestehende Submissionen eindeutig Questionnaire- und Schema-Version zugeordnet sind.
 9. Tests die spezifizierten Fehler- und Trennungsfälle abdecken.
 10. Conrad, Sina und Tessa ihre jeweiligen Review-Gates ohne offenen BLOCKER abschließen.
+11. fehlende/ungültige Runtime-Secrets führen zu sicherem Fehler ohne Credential-Leak und ohne Fallback.
+12. Repository/Deployment enthält zu keinem Zeitpunkt echte DB-Credentials.
 
 ## BLOCKER vor `GO`
-
-### B-001 Datenbank-Engine / Runtime-Verfügbarkeit
-
-Für ausführbare Migration und Connector-Konfiguration muss feststehen, welche relationale Datenbank im IONOS-Setup tatsächlich verwendet wird (z. B. MySQL/MariaDB inklusive verfügbarer Version). Das logische Schema ist davon unabhängig beschrieben.
 
 ### B-003 Canonical answer values
 
@@ -76,6 +95,16 @@ Für alle Auswahloptionen müssen stabile maschinenlesbare Werte verbindlich fes
 Die Backstage-YAML verwendet vorläufig `group:default/nerozon-engineering`. Vor echtem Backstage-Import muss geklärt werden, welcher vorhandene GitHub-/Backstage-Group-Name Eigentümer dieser Komponenten ist. Dies blockiert nicht den PHP-Build, aber den validen Katalogimport.
 
 ## Erledigte ehemalige Blocker
+
+### B-001 Datenbank-Engine / Runtime-Verfügbarkeit — RESOLVED
+
+Festgelegt und in `/database/QUESTIONNAIRE-SCHEMA-SPEC.md` dokumentiert:
+
+- IONOS Webhosting Pro
+- MariaDB 11.8
+- Port 3306
+- konkrete nicht geheime DB-Verbindungsparameter
+- Production-Secret ausschließlich serverseitig/Vault, niemals GitHub
 
 ### B-002 Questionnaire-Version — RESOLVED
 
@@ -112,6 +141,7 @@ Prüfe Component Map und Implementierung auf:
 - keine Infrastrukturkopplung in Business Logic/Data Model.
 - sinnvolle Trennung wiederverwendbar vs. questionnaire-spezifisch.
 - keine unnötige neue Abstraktion.
+- Secret-/Config-Grenze bleibt Infrastruktur und sickert nicht in Business Logic.
 
 ### Sina
 
@@ -130,7 +160,8 @@ Prüfe:
 - negative/Fehlerpfade.
 - Testbarkeit der Component-Grenzen.
 - Integrationstest ohne Produktions-Secrets.
+- Missing-/Invalid-Secret-Test und Nachweis, dass keine Secrets ausgegeben werden.
 
 ## Ready-for-Devin-Regel für diesen PoC
 
-`GO` ist sinnvoll, sobald B-001 und B-003 entschieden sind. B-004 muss spätestens vor Backstage-Import aufgelöst sein.
+`GO` ist sinnvoll, sobald B-003 entschieden ist. B-004 muss spätestens vor Backstage-Import aufgelöst sein.
