@@ -1,89 +1,103 @@
 # WORK ORDER
 
-Status: IN_PROGRESS
-Executor: Devin
+Status: REVIEW
+Executor: Conrad
 Branch: dev3
-Scope: S092026 Questionnaire Backend
+Scope: S092026 Questionnaire Backend – Architecture Review
 
 ## Objective
 
-Implementiere auf `dev3` den vollständigen Backend-Pfad für den anonymen Questionnaire `S092026` gemäß den bereits freigegebenen technischen Spezifikationen.
+Prüfe die auf `dev3` implementierte Questionnaire-Backend-Lösung auf Architekturkonformität. Dies ist ein Review-Auftrag, kein Implementierungsauftrag.
 
-Dieser Work Order ist der branch-lokale Einstiegspunkt für die Ausführung. Er ersetzt keine RULES oder SPECs, sondern aktiviert den darin beschriebenen Arbeitsumfang.
+Bewerte insbesondere Component Boundaries, Dependency-Richtung, Trennung von Fachlichkeit und Infrastruktur, Wiederverwendbarkeit der Connectoren sowie Config-/Secret-Grenzen.
 
-## Authoritative Execution Spec
+## Authoritative Sources
+
+Ausgangspunkt ist die bestehende Implementierung auf `dev3` einschließlich der für den Questionnaire freigegebenen RULES und SPECs.
+
+Besonders relevant:
 
 - `/api/questionnaire/DEVIN-EXECUTION-SPEC.md`
+- `/api/questionnaire/DATA-MODEL-SPEC.md`
+- `/api/questionnaire/BUSINESS-LOGIC-SPEC.md`
+- `/api/questionnaire/REPOSITORY-SPEC.md`
+- `/api/shared/db-connector/SPEC.md`
+- `/api/shared/http-connector/SPEC.md`
+- `/api/components/COMPONENT-MAP-SPEC.md`
+- `/database/QUESTIONNAIRE-SCHEMA-SPEC.md`
+- alle übergeordneten und lokal einschlägigen `RULES.md`
 
-Devin liest vor Implementierungsbeginn die dort aufgeführten übergeordneten RULES, Architektur-/Datenmodell-Dokumente, Component-SPECs, Questionnaire-SPECs und Database-SPECs.
+Die tatsächliche Implementierung ist gegen diese Vorgaben zu prüfen. Allgemeine Best Practices dürfen zur Bewertung herangezogen werden, ersetzen aber keine NEROZON-Regel.
 
-## Fixed Identity
+## Fixed Architecture Intent
 
-- `questionnaire_id = S092026`
-- `questionnaire_version = 20260830`
-- `schema_version = 1`
-- Fragen-ID: `S092026Qxx`
-- Auswahlantwort-ID: `S092026QxxAyy`
+Die vorgesehene Dependency-Richtung ist:
 
-## Required Build Scope
+HTTP
+→ API HTTP Connector
+→ Questionnaire Business Logic
+→ Questionnaire Data Model
+→ Questionnaire Repository
+→ DB Connector
+→ Questionnaire Database
 
-Devin baut mindestens:
+Business Logic darf nicht direkt von HTTP, PDO, SQL, konkreten Tabellen oder externen Infrastrukturdetails abhängen.
 
-- Questionnaire Data Model
-- Questionnaire Business Logic
-- Questionnaire Repository
-- generischen DB Connector
-- generische HTTP/API-Grenze
-- Config-/Secret-Loader plus versionierte `secret.example.php`
-- MariaDB-11.8-kompatible INIT-Migration
-- Unit- und Integrationstests gemäß Execution Spec
-- erforderliche Implementierungs-/Betriebsdokumentation
-- Conformance-Nachweis für den implementierten Stand
+Generische Connectoren dürfen keine Questionnaire-Fachsemantik enthalten.
 
-## Runtime Secret Boundary
+## Review Scope
 
-Produktive Secrets werden NICHT von Devin angelegt oder angefordert. Rainer legt die echte `Secret.php` nach Bereitstellung der erwarteten Struktur manuell per SFTP unter `dev3.nerozon.de/config` an. GitHub sieht diese Werte niemals.
+Conrad prüft mindestens:
 
-## Required Reviews
+- Component Boundaries und Dependency-Richtung
+- Business Logic vs. Data Model vs. Repository vs. Infrastruktur
+- Wiederverwendbarkeit von DB- und HTTP-Connector
+- Persistenzkopplung und konkrete DB-Abhängigkeiten
+- Config-/Secret-Grenzen und Verantwortlichkeiten
+- ob Secrets, technische Resource-Konfiguration und fachliche Konfiguration sauber getrennt sind
+- API-Grenzen und öffentlich erreichbare Komponenten
+- versteckte Framework-/PDO-/HTTP-Kopplungen
+- unnötige oder fehlende Abstraktionen
+- Übereinstimmung zwischen SPECs und Implementierung
+- neue stille Architekturentscheidungen, die nicht aus den zulässigen Quellen folgen
 
-Nach Implementierung müssen die in der Execution Spec definierten Review-Gates durchgeführt werden:
+## Review Rules
 
-- Conrad – Architektur / Component Boundaries
-- Sina – Data Model / Persistenz / Canonical IDs
-- Tessa – Tests / Fehlerpfade / Integration
+Conrad implementiert oder refaktoriert im Rahmen dieses Work Orders nicht selbst.
 
-Ein Review-BLOCKER setzt den Work Order auf `BLOCKED` bzw. führt zurück in Implementierung. `DONE` ist erst zulässig, wenn alle erforderlichen Reviews ohne offenen BLOCKER abgeschlossen sind.
+Bestehende RULES oder SPECs werden nicht still verändert, um die Implementierung passend zu machen.
 
-## Current Blocking Questions
+Nicht eindeutig spezifizierte notwendige Entscheidungen werden als UNKNOWN sichtbar gemacht. Ein UNKNOWN ist nur dann BLOCKER, wenn ohne seine Klärung keine belastbare Architekturfreigabe möglich ist.
 
-Keine Build-Blocker offen.
+Findings werden klassifiziert als:
 
-Backstage Ownership (`B-004`) ist noch offen, blockiert diesen Build aber nicht.
+- `BLOCKER` – verhindert Architekturfreigabe
+- `FINDING` – sollte korrigiert werden, verhindert aber nicht zwingend die weitere Arbeit
+- `NOTE` – Hinweis oder Verbesserung ohne Freigaberelevanz
 
-## State Model
+## Required Output
 
-Erlaubte Zustände dieses Work Orders:
+Conrad dokumentiert das Review nachvollziehbar im Repository, ohne produktiven Code zu verändern.
 
-- `DRAFT`
-- `READY`
-- `IN_PROGRESS`
-- `REVIEW`
-- `BLOCKED`
-- `DONE`
+Der Review-Abschluss enthält mindestens:
 
-Devin setzt beim tatsächlichen Start `Status: IN_PROGRESS`. Nach abgeschlossener Implementierung und eigenen Tests setzt Devin `Status: REVIEW` und dokumentiert die für Conrad, Sina und Tessa prüfbaren Ergebnisse. `DONE` erst nach erfolgreichen Review-Gates.
+- Ergebnis: `PASS`, `PASS WITH FINDINGS` oder `BLOCKED`
+- BLOCKER
+- FINDINGS
+- NOTES
+- geprüfte Quellen bzw. relevante Implementierungsbereiche
+- bei jedem Finding eine kurze Begründung und die betroffene Architekturgrenze
+
+Wenn keine architekturrelevanten Abweichungen gefunden werden, ist dies ausdrücklich festzuhalten.
 
 ## Completion
 
-Der Work Order ist abgeschlossen, wenn:
+Dieser Conrad-Work-Order ist abgeschlossen, wenn die Architekturreview vollständig dokumentiert ist.
 
-1. der Scope der Execution Spec implementiert ist,
-2. alle dortigen Abnahmekriterien erfüllt sind,
-3. Tests erfolgreich sind,
-4. keine echten Secrets im Repository/Deployment-Artefakt enthalten sind,
-5. Conrad, Sina und Tessa ihre Review-Gates ohne offenen BLOCKER abgeschlossen haben,
-6. der Conformance-Nachweis den finalen Stand dokumentiert.
+Bei `BLOCKED` oder offenen Findings wird keine eigenständige Implementierung vorgenommen. Die Ergebnisse gehen zurück an den Implementierungsprozess bzw. an Rainer zur Entscheidung.
+
+Nach Conrads Review bleiben die separaten Review-Gates von Sina und Tessa erforderlich.
 
 ## Instruction
 
-Der Arbeitsauftrag ist freigegeben und ausführbar. Bei `GO` auf `dev3` diesen Work Order ausführen. Keine erneute Architekturentscheidung treffen, sofern die bestehenden SPECs den Fall eindeutig regeln. Neue echte Widersprüche oder nicht spezifizierte Entscheidungen als Blocker sichtbar machen, statt Annahmen still in die Implementierung einzubauen.
+Bei `GO auf dev3` diesen Work Order unmittelbar ausführen. Nicht nach Auftrag, Ziel oder Scope fragen. `WORK-ORDER.md` ist der branch-lokale Einstiegspunkt und dieser Work Order ist bereits im Zustand `REVIEW` für Conrad freigegeben.
