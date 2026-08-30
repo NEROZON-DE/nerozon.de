@@ -1,0 +1,4 @@
+<?php
+declare(strict_types=1);
+namespace Nerozon\Config;
+final class SecretConfig{public static function load(string $path):array{if(!is_file($path)||!is_readable($path))throw new \RuntimeException('Runtime configuration unavailable.');$c=require $path;if(!is_array($c)||!isset($c['database'])||!is_array($c['database']))throw new \RuntimeException('Runtime configuration invalid.');$db=$c['database'];foreach(['host','port','database','username','password'] as $k){if(!array_key_exists($k,$db)||($k!=='port'&&(!is_string($db[$k])||$db[$k]==='')))throw new \RuntimeException('Runtime configuration invalid.');}if(!is_int($db['port'])&&!(is_string($db['port'])&&ctype_digit($db['port'])))throw new \RuntimeException('Runtime configuration invalid.');$db['port']=(int)$db['port'];return ['database'=>$db];}}
