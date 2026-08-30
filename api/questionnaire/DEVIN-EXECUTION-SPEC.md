@@ -1,6 +1,6 @@
 # Questionnaire Backend – Devin Execution Specification
 
-Status: DRAFT / NOT READY FOR GO
+Status: READY FOR DEVIN GO
 Scope: dev3 branch PoC
 
 ## Auftrag nach Freigabe
@@ -22,11 +22,15 @@ Devin implementiert den Backend-Pfad für die anonyme 20-Fragen-Submission entsp
 
 Devin ändert keine RULES oder SPEC still, um eine Implementierung passend zu machen. Unauflösbare Konflikte werden als Blocker gemeldet.
 
-## Feste Questionnaire-Identität
+## Feste Questionnaire-Identität und Canonical IDs
 
-- `questionnaire_id = Q-09-2026`
+- `questionnaire_id = S092026`
 - `questionnaire_version = 20260830`
 - `schema_version = 1`
+- Fragen: `S092026Qxx`, z. B. `S092026Q02`
+- Auswahlantworten: `S092026QxxAyy`, z. B. `S092026Q02A03`
+
+`Qxx` und `Ayy` sind zweistellig mit führender Null und folgen der verbindlichen Reihenfolge in `/www/q/20-FRAGEN-SPEC.md`. Freitextantworten erhalten keine künstliche `Axx`-ID.
 
 Diese Werte werden nicht deploymentabhängig verändert.
 
@@ -83,35 +87,29 @@ Der Build ist für diesen Scope technisch vollständig, wenn:
 10. Conrad, Sina und Tessa ihre jeweiligen Review-Gates ohne offenen BLOCKER abschließen.
 11. fehlende/ungültige Runtime-Secrets führen zu sicherem Fehler ohne Credential-Leak und ohne Fallback.
 12. Repository/Deployment enthält zu keinem Zeitpunkt echte DB-Credentials.
+13. Fragen- und Auswahlantwort-IDs entsprechen deterministisch dem `S092026QxxAyy`-Modell.
 
 ## BLOCKER vor `GO`
 
-### B-003 Canonical answer values
-
-Für alle Auswahloptionen müssen stabile maschinenlesbare Werte verbindlich festgelegt werden, damit Frontend, API und gespeicherte historische Daten dieselbe Semantik verwenden. Die sichtbaren Texte in `20-FRAGEN-SPEC.md` sind bereits fachlich freigegeben; die technischen Keys fehlen noch.
+Keine fachlich-technischen Build-Blocker offen.
 
 ### B-004 Ownership-Entity
 
-Die Backstage-YAML verwendet vorläufig `group:default/nerozon-engineering`. Vor echtem Backstage-Import muss geklärt werden, welcher vorhandene GitHub-/Backstage-Group-Name Eigentümer dieser Komponenten ist. Dies blockiert nicht den PHP-Build, aber den validen Katalogimport.
+Die Backstage-YAML verwendet vorläufig `group:default/nerozon-engineering`. Vor echtem Backstage-Import muss geklärt werden, welcher vorhandene GitHub-/Backstage-Group-Name Eigentümer dieser Komponenten ist. Dies blockiert weder PHP-Build noch Devin-GO.
 
 ## Erledigte ehemalige Blocker
 
 ### B-001 Datenbank-Engine / Runtime-Verfügbarkeit — RESOLVED
 
-Festgelegt und in `/database/QUESTIONNAIRE-SCHEMA-SPEC.md` dokumentiert:
-
-- IONOS Webhosting Pro
-- MariaDB 11.8
-- Port 3306
-- konkrete nicht geheime DB-Verbindungsparameter
-- Production-Secret ausschließlich serverseitig/Vault, niemals GitHub
+Festgelegt und in `/database/QUESTIONNAIRE-SCHEMA-SPEC.md` dokumentiert: IONOS Webhosting Pro, MariaDB 11.8, Port 3306, konkrete nicht geheime DB-Verbindungsparameter; Production-Secret ausschließlich serverseitig/Vault, niemals GitHub.
 
 ### B-002 Questionnaire-Version — RESOLVED
 
-Festgelegt:
+Festgelegt: `questionnaire_id = S092026`, `questionnaire_version = 20260830`.
 
-- `questionnaire_id = Q-09-2026`
-- `questionnaire_version = 20260830`
+### B-003 Canonical answer values — RESOLVED
+
+Festgelegt ist das deterministische ID-Modell `S092026QxxAyy`. Fragen verwenden `S092026Qxx`; Auswahlantworten verwenden `S092026QxxAyy`. Die Nummerierung folgt der verbindlichen Reihenfolge der Fragen und Optionen in `/www/q/20-FRAGEN-SPEC.md`.
 
 ## NON-BLOCKER / Review-Entscheidungen
 
@@ -135,33 +133,16 @@ Bis zu einer engeren Vorgabe gilt serverseitig ein defensives Maximum von 4.000 
 
 ### Conrad
 
-Prüfe Component Map und Implementierung auf:
-
-- richtige Abhängigkeitsrichtung.
-- keine Infrastrukturkopplung in Business Logic/Data Model.
-- sinnvolle Trennung wiederverwendbar vs. questionnaire-spezifisch.
-- keine unnötige neue Abstraktion.
-- Secret-/Config-Grenze bleibt Infrastruktur und sickert nicht in Business Logic.
+Prüfe Component Map und Implementierung auf richtige Abhängigkeitsrichtung, keine Infrastrukturkopplung in Business Logic/Data Model, sinnvolle Trennung wiederverwendbar vs. questionnaire-spezifisch, keine unnötige neue Abstraktion und saubere Secret-/Config-Grenze.
 
 ### Sina
 
-Prüfe:
-
-- vollständiges Data Model gegenüber `20-FRAGEN-SPEC.md`.
-- canonical values und Versionierung.
-- Persistenzmapping/Indexfelder.
-- Anonymität und Datentrennung.
+Prüfe vollständiges Data Model gegenüber `20-FRAGEN-SPEC.md`, deterministische `S092026QxxAyy`-Zuordnung, Versionierung, Persistenzmapping/Indexfelder, Anonymität und Datentrennung.
 
 ### Tessa
 
-Prüfe:
-
-- Testabdeckung der Abnahmekriterien.
-- negative/Fehlerpfade.
-- Testbarkeit der Component-Grenzen.
-- Integrationstest ohne Produktions-Secrets.
-- Missing-/Invalid-Secret-Test und Nachweis, dass keine Secrets ausgegeben werden.
+Prüfe Testabdeckung der Abnahmekriterien, negative/Fehlerpfade, Testbarkeit der Component-Grenzen, Integrationstest ohne Produktions-Secrets sowie Missing-/Invalid-Secret-Verhalten.
 
 ## Ready-for-Devin-Regel für diesen PoC
 
-`GO` ist sinnvoll, sobald B-003 entschieden ist. B-004 muss spätestens vor Backstage-Import aufgelöst sein.
+Die fachlich-technischen Voraussetzungen für Devin sind erfüllt. B-004 ist ausschließlich vor einem echten Backstage-Import aufzulösen.
