@@ -53,10 +53,10 @@ components:
       properties:
         questionnaire_id:
           type: string
-          enum: [20-fragen]
+          enum: [Q-09-2026]
         questionnaire_version:
           type: string
-          description: Version of the question set defined by the implementation.
+          enum: ['20260830']
         answers:
           type: array
           items:
