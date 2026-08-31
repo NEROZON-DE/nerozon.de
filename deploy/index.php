@@ -15,6 +15,7 @@ declare(strict_types=1);
  * component:
  * - www
  * - api
+ * - dispatcher
  *
  * Ungültige Aufrufe liefern nur HTTP 404.
  */
@@ -33,52 +34,23 @@ $action    = $_GET['action'] ?? '';
 $component = $_GET['component'] ?? '';
 $token     = $_GET['token'] ?? '';
 
-
-/*
- * Nur exakt erlaubte Aktionen.
- */
-
 if (!in_array($action, ['prepare', 'deploy'], true)) {
     exit;
 }
 
-
-/*
- * Nur exakt erlaubte Komponenten.
- */
-
-if (!in_array($component, ['www', 'api'], true)) {
+if (!in_array($component, ['www', 'api', 'dispatcher'], true)) {
     exit;
 }
 
-
-/*
- * Tokenformat prüfen.
- */
-
-if (!preg_match(
-    '/^dpl-[0-9]{13}-[a-f0-9]{32}$/',
-    $token
-)) {
+if (!preg_match('/^dpl-[0-9]{13}-[a-f0-9]{32}$/', $token)) {
     exit;
 }
-
 
 $tokenFile = $base . '/' . $token;
-
-
-/*
- * Token muss existieren.
- */
 
 if (!is_file($tokenFile)) {
     exit;
 }
-
-
-/*
- * Token maximal 20 Minuten gültig.
- */
 
 $age = time() - filemtime($tokenFile);
 
@@ -87,22 +59,9 @@ if ($age < 0 || $age > 1200) {
     exit;
 }
 
-
-/*
- * Fest definierte Verzeichnisse.
- */
-
 $live     = $base . '/' . $component;
 $staging  = $base . '/' . $component . '-deploy';
 $rollback = $base . '/' . $component . '-rollback';
-
-
-/*
- * Rekursives Löschen.
- *
- * Wird ausschließlich mit intern erzeugten
- * Pfaden aufgerufen.
- */
 
 function removeTree(string $path): bool
 {
@@ -121,7 +80,6 @@ function removeTree(string $path): bool
     }
 
     foreach ($items as $item) {
-
         if ($item === '.' || $item === '..') {
             continue;
         }
@@ -134,20 +92,7 @@ function removeTree(string $path): bool
     return rmdir($path);
 }
 
-
-/*
- * ============================================================
- * PREPARE
- * ============================================================
- *
- * - vorhandenes staging löschen
- * - staging neu anlegen
- *
- * Token bleibt bestehen.
- */
-
 if ($action === 'prepare') {
-
     if (!removeTree($staging)) {
         http_response_code(500);
         exit("Prepare failed: staging could not be removed.\n");
@@ -159,87 +104,40 @@ if ($action === 'prepare') {
     }
 
     http_response_code(200);
-
     echo "NEROZON {$component} prepare successful\n";
     exit;
 }
-
-
-/*
- * ============================================================
- * DEPLOY
- * ============================================================
- */
-
-
-/*
- * Staging muss existieren.
- */
 
 if (!is_dir($staging)) {
     http_response_code(500);
     exit("Deployment failed: staging missing.\n");
 }
 
-
-/*
- * Staging darf nicht leer sein.
- */
-
-$items = array_diff(
-    scandir($staging) ?: [],
-    ['.', '..']
-);
+$items = array_diff(scandir($staging) ?: [], ['.', '..']);
 
 if (count($items) === 0) {
     http_response_code(500);
     exit("Deployment failed: staging empty.\n");
 }
 
-
-/*
- * Token erst jetzt verbrauchen.
- */
-
 if (!unlink($tokenFile)) {
     http_response_code(500);
     exit("Deployment failed: token could not be consumed.\n");
 }
-
-
-/*
- * Alten Rollback-Stand entfernen.
- */
 
 if (!removeTree($rollback)) {
     http_response_code(500);
     exit("Deployment failed: old rollback could not be removed.\n");
 }
 
-
-/*
- * Aktuellen Produktionsstand sichern.
- */
-
 if (is_dir($live)) {
-
     if (!rename($live, $rollback)) {
         http_response_code(500);
         exit("Deployment failed: live -> rollback.\n");
     }
 }
 
-
-/*
- * Neuen Stand aktivieren.
- */
-
 if (!rename($staging, $live)) {
-
-    /*
-     * Falls möglich sofort alten Stand zurückholen.
-     */
-
     if (is_dir($rollback) && !is_dir($live)) {
         rename($rollback, $live);
     }
@@ -248,11 +146,5 @@ if (!rename($staging, $live)) {
     exit("Deployment failed: staging -> live.\n");
 }
 
-
-/*
- * Erfolg.
- */
-
 http_response_code(200);
-
 echo "NEROZON {$component} deployment successful\n";

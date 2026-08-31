@@ -7,6 +7,7 @@ on:
     paths:
       - 'www/**'
       - 'api/**'
+      - 'dispatcher/**'
       - 'deploy/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -155,3 +156,66 @@ jobs:
         run: |
           curl --fail --silent --show-error --max-time 30 --request POST \
             "https://deploy-dev2.nerozon.de/index.php?action=deploy&component=api&token=${{ steps.token_api.outputs.token }}"
+
+      - name: Check Dispatcher content
+        id: check_dispatcher
+        run: |
+          if find dispatcher -type f -print -quit | grep -q .; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Dispatcher deployment token
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        id: token_dispatcher
+        run: |
+          TIMESTAMP=$(date +%s%3N)
+          RANDOM_TOKEN=$(openssl rand -hex 16)
+          TOKEN="dpl-${TIMESTAMP}-${RANDOM_TOKEN}"
+          mkdir -p trigger-dispatcher
+          touch "trigger-dispatcher/${TOKEN}"
+          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Dispatcher deployment token
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_DEV2 }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}
+          local_path: './trigger-dispatcher/*'
+          remote_path: '/'
+          sftp_only: true
+
+      - name: Prepare Dispatcher staging
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        run: |
+          curl --fail --silent --show-error --max-time 30 --request POST \
+            "https://deploy-dev2.nerozon.de/index.php?action=prepare&component=dispatcher&token=${{ steps.token_dispatcher.outputs.token }}"
+
+      - name: Prepare Dispatcher package
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        run: |
+          mkdir -p package-dispatcher
+          cp -R dispatcher/. package-dispatcher/
+          find package-dispatcher -type f \( -name 'RULES.md' -o -name '*-RULES.md' -o -name 'SPEC.md' -o -name '*-SPEC.md' \) -delete
+          find package-dispatcher -type d -exec chmod 755 {} \;
+          find package-dispatcher -type f -exec chmod 644 {} \;
+
+      - name: Upload Dispatcher staging
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_DEV2 }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}
+          local_path: './package-dispatcher/*'
+          remote_path: '/dispatcher-deploy/'
+          sftp_only: true
+
+      - name: Activate Dispatcher
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        run: |
+          curl --fail --silent --show-error --max-time 30 --request POST \
+            "https://deploy-dev2.nerozon.de/index.php?action=deploy&component=dispatcher&token=${{ steps.token_dispatcher.outputs.token }}"
