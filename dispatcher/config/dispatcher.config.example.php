@@ -3,19 +3,24 @@
 declare(strict_types=1);
 
 return [
-    'admin_user' => 'rainer',
-    'admin_password_hash' => 'SET_PASSWORD_HASH_HERE',
+    // Runtime bootstrap: these values must remain outside GitHub.
+    'db_host' => 'db.example.ionos.de',
+    'db_port' => 3306,
+    'db_name' => 'nerozon_dispatcher',
+    'db_user' => 'nerozon_dispatcher',
+    'db_password' => 'SET_DATABASE_PASSWORD_HERE',
 
-    'ingest_token' => 'SET_LONG_RANDOM_TOKEN_HERE',
-    'cron_token' => 'SET_LONG_RANDOM_TOKEN_HERE',
+    // One-time/idempotent init access. Remove or rotate after provisioning.
+    'init_key' => 'SET_LONG_RANDOM_INIT_KEY_HERE',
 
-    'openai_api_key' => 'SET_OPENAI_API_KEY_HERE',
-    'openai_base_url' => 'https://api.openai.com/v1',
-    'default_provider' => 'openai',
-    'default_model' => 'gpt-5.6-luna',
+    // Optional: only enable when the IONOS account may CREATE DATABASE/USER.
+    // On managed hosting, database/user may need to be created in the IONOS panel.
+    'provision_database_access' => false,
+    'provision_user' => '',
+    'provision_password' => '',
+    'db_user_host' => '%',
 
-    // Empfehlung: außerhalb des Webroots halten.
-    'data_dir' => dirname(__DIR__, 2) . '/../dispatcher-data',
-    'max_jobs_per_cron' => 5,
-    'max_retries' => 2,
+    // When true, init also executes CREATE DATABASE IF NOT EXISTS with db_user.
+    // Leave false when the database is provisioned externally.
+    'create_database_if_possible' => false,
 ];
