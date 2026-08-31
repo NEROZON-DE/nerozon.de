@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-const DISPATCHER_VERSION = '0.4.1';
+const DISPATCHER_VERSION = '0.4.2';
 
 function dispatcher_bootstrap_config(): array
 {
@@ -344,8 +344,24 @@ function dispatcher_openai_request(array $job): array
     return ['provider' => 'openai', 'status' => $result['http_status'], 'response' => $result['response']];
 }
 
+function dispatcher_runtime_base_url(): string
+{
+    $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+
+    $forwardedProto = strtolower(trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+    $https = strtolower(trim((string)($_SERVER['HTTPS'] ?? '')));
+    $scheme = ($forwardedProto === 'https' || ($https !== '' && $https !== 'off')) ? 'https' : 'http';
+    return $scheme . '://' . $host;
+}
+
 function dispatcher_worker_bootstrap_prompt(array $workorder): string
 {
+    $callbackBase = dispatcher_runtime_base_url();
+    $statusUrl = $callbackBase !== '' ? $callbackBase . '/worker-status.php' : '/worker-status.php';
+
     return implode("\n", [
         'You are operating as the ' . $workorder['target'] . ' fundamental role.',
         '',
@@ -362,6 +378,16 @@ function dispatcher_worker_bootstrap_prompt(array $workorder): string
         '',
         'Load these sources and continue according to the loaded Authority, Work Order, CR, and other authoritative truths.',
         'Do not claim the Work Order until the information and Authority required to perform it are accessible.',
+        '',
+        'Runtime Work Order status callback:',
+        'POST ' . $statusUrl,
+        'Content-Type: application/json',
+        'Report only after the corresponding Git lifecycle transition has been committed and pushed.',
+        'When the Work Order has been moved from queued to in_progress, send:',
+        '{"wo_id":"' . $workorder['wo_id'] . '","status":"in_progress","commit":"<git commit sha>"}',
+        'When the Work Order has been moved from in_progress to closed, send:',
+        '{"wo_id":"' . $workorder['wo_id'] . '","status":"closed","commit":"<git commit sha>"}',
+        'The commit field may be omitted only if the current commit SHA is not available.',
     ]);
 }
 
