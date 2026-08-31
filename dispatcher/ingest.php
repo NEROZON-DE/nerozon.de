@@ -8,7 +8,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     dispatcher_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
 }
 
-dispatcher_require_bearer((string)dispatcher_setting('ingest_token'));
+$expectedToken = (string)dispatcher_setting('ingest_token');
+$authorizationHeader = dispatcher_authorization_header();
+
+if ($authorizationHeader === '') {
+    dispatcher_json(['ok' => false, 'error' => 'authorization_header_missing'], 401);
+}
+
+if (!preg_match('/^Bearer\\s+(.+)$/i', $authorizationHeader, $bearerMatch)) {
+    dispatcher_json(['ok' => false, 'error' => 'authorization_header_malformed'], 401);
+}
+
+if ($expectedToken === '' || !hash_equals($expectedToken, trim($bearerMatch[1]))) {
+    dispatcher_json(['ok' => false, 'error' => 'token_mismatch'], 401);
+}
 
 $raw = file_get_contents('php://input');
 $data = json_decode($raw ?: '', true);
