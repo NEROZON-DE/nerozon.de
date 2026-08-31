@@ -2,15 +2,8 @@
 
 declare(strict_types=1);
 
-const DISPATCHER_VERSION = '0.3.0-dev2';
+const DISPATCHER_VERSION = '0.4.0-dev2';
 
-/**
- * Load the environment-specific database wiring.
- *
- * /env-config is server-managed and is deliberately not part of the repository.
- * The file may itself load credentials from a secret location outside the
- * environment document root.
- */
 function dispatcher_bootstrap_config(): array
 {
     static $config = null;
@@ -28,7 +21,6 @@ function dispatcher_bootstrap_config(): array
         throw new RuntimeException('Invalid /env-config/database.php: expected array.');
     }
 
-    // Accept the canonical env-config names and normalize them for the dispatcher.
     $config = [
         'db_host' => (string)($loaded['host'] ?? ''),
         'db_port' => (int)($loaded['port'] ?? 3306),
@@ -41,11 +33,9 @@ function dispatcher_bootstrap_config(): array
     if ($config['db_host'] === '' || $config['db_name'] === '' || $config['db_user'] === '') {
         throw new RuntimeException('Incomplete database environment configuration.');
     }
-
     if (!preg_match('/^[A-Za-z0-9_]+$/', $config['db_name'])) {
         throw new RuntimeException('Invalid database name in environment configuration.');
     }
-
     if (!preg_match('/^[A-Za-z0-9_]+$/', $config['db_charset'])) {
         throw new RuntimeException('Invalid database charset in environment configuration.');
     }
@@ -66,16 +56,11 @@ function dispatcher_pdo(): PDO
         . ';dbname=' . $cfg['db_name']
         . ';charset=' . $cfg['db_charset'];
 
-    $pdo = new PDO(
-        $dsn,
-        $cfg['db_user'],
-        $cfg['db_password'],
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]
-    );
+    $pdo = new PDO($dsn, $cfg['db_user'], $cfg['db_password'], [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
 
     return $pdo;
 }
@@ -92,7 +77,6 @@ function dispatcher_initialize_database(): array
             is_secret TINYINT(1) NOT NULL DEFAULT 0,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-
         "CREATE TABLE IF NOT EXISTS dispatcher_jobs (
             id CHAR(36) PRIMARY KEY,
             source VARCHAR(100) NOT NULL,
@@ -110,7 +94,25 @@ function dispatcher_initialize_database(): array
             INDEX idx_jobs_pick (status, available_at, created_at),
             INDEX idx_jobs_source (source, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-
+        "CREATE TABLE IF NOT EXISTS dispatcher_workorders (
+            wo_id VARCHAR(40) PRIMARY KEY,
+            target VARCHAR(40) NOT NULL,
+            repository VARCHAR(200) NOT NULL,
+            branch_name VARCHAR(200) NOT NULL,
+            wo_path VARCHAR(500) NOT NULL,
+            commit_sha CHAR(40) NOT NULL,
+            authority_repository VARCHAR(200) NOT NULL,
+            authority_branch VARCHAR(200) NOT NULL DEFAULT 'main',
+            authority_path VARCHAR(500) NOT NULL DEFAULT 'ROLE.md',
+            status VARCHAR(30) NOT NULL DEFAULT 'registered',
+            openai_response_id VARCHAR(100) NULL,
+            openai_status VARCHAR(30) NULL,
+            error_text TEXT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_workorders_status (status, updated_at),
+            INDEX idx_workorders_branch (repository, branch_name, updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         "CREATE TABLE IF NOT EXISTS dispatcher_cron_runs (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -122,7 +124,6 @@ function dispatcher_initialize_database(): array
             message TEXT NULL,
             INDEX idx_cron_started (started_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
-
         "CREATE TABLE IF NOT EXISTS dispatcher_log (
             id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -143,12 +144,14 @@ function dispatcher_initialize_database(): array
     $initialPassword = bin2hex(random_bytes(10));
     $initialIngest = bin2hex(random_bytes(32));
     $initialCron = bin2hex(random_bytes(32));
+    $initialWorkerTrigger = bin2hex(random_bytes(32));
 
     $defaults = [
         'admin_user' => ['admin', 0],
         'admin_password_hash' => [password_hash($initialPassword, PASSWORD_DEFAULT), 1],
         'ingest_token' => [$initialIngest, 1],
         'cron_token' => [$initialCron, 1],
+        'worker_trigger_token' => [$initialWorkerTrigger, 1],
         'openai_api_key' => ['', 1],
         'openai_base_url' => ['https://api.openai.com/v1', 0],
         'default_provider' => ['openai', 0],
@@ -159,22 +162,14 @@ function dispatcher_initialize_database(): array
         'cron_enabled' => ['1', 0],
     ];
 
-    $stmt = $pdo->prepare(
-        'INSERT IGNORE INTO dispatcher_settings (setting_key, setting_value, is_secret) VALUES (?, ?, ?)'
-    );
-
+    $stmt = $pdo->prepare('INSERT IGNORE INTO dispatcher_settings (setting_key, setting_value, is_secret) VALUES (?, ?, ?)');
     foreach ($defaults as $key => [$value, $secret]) {
         $stmt->execute([$key, $value, $secret]);
         if ($stmt->rowCount() === 1) {
-            if ($key === 'admin_password_hash') {
-                $notes[] = 'INITIAL admin password: ' . $initialPassword;
-            }
-            if ($key === 'ingest_token') {
-                $notes[] = 'INITIAL ingest token: ' . $initialIngest;
-            }
-            if ($key === 'cron_token') {
-                $notes[] = 'INITIAL cron token: ' . $initialCron;
-            }
+            if ($key === 'admin_password_hash') $notes[] = 'INITIAL admin password: ' . $initialPassword;
+            if ($key === 'ingest_token') $notes[] = 'INITIAL ingest token: ' . $initialIngest;
+            if ($key === 'cron_token') $notes[] = 'INITIAL cron token: ' . $initialCron;
+            if ($key === 'worker_trigger_token') $notes[] = 'INITIAL worker trigger token: ' . $initialWorkerTrigger;
         }
     }
 
@@ -185,19 +180,13 @@ function dispatcher_initialize_database(): array
 function dispatcher_settings(): array
 {
     static $settings = null;
-    if ($settings !== null) {
-        return $settings;
-    }
+    if ($settings !== null) return $settings;
 
-    $rows = dispatcher_pdo()
-        ->query('SELECT setting_key, setting_value FROM dispatcher_settings')
-        ->fetchAll();
-
+    $rows = dispatcher_pdo()->query('SELECT setting_key, setting_value FROM dispatcher_settings')->fetchAll();
     $settings = [];
     foreach ($rows as $row) {
         $settings[$row['setting_key']] = (string)($row['setting_value'] ?? '');
     }
-
     return $settings;
 }
 
@@ -209,9 +198,7 @@ function dispatcher_setting(string $key, mixed $default = ''): mixed
 
 function dispatcher_save_setting(string $key, string $value): void
 {
-    $stmt = dispatcher_pdo()->prepare(
-        'UPDATE dispatcher_settings SET setting_value = ? WHERE setting_key = ?'
-    );
+    $stmt = dispatcher_pdo()->prepare('UPDATE dispatcher_settings SET setting_value = ? WHERE setting_key = ?');
     $stmt->execute([$value, $key]);
 }
 
@@ -220,10 +207,7 @@ function dispatcher_json(array $data, int $status = 200): never
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
-    echo json_encode(
-        $data,
-        JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT
-    );
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     exit;
 }
 
@@ -244,87 +228,52 @@ function dispatcher_authorization_header(): string
 {
     foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $key) {
         $value = $_SERVER[$key] ?? '';
-        if (is_string($value) && trim($value) !== '') {
-            return trim($value);
-        }
+        if (is_string($value) && trim($value) !== '') return trim($value);
     }
 
     $headerSources = [];
     if (function_exists('getallheaders')) {
         $headers = getallheaders();
-        if (is_array($headers)) {
-            $headerSources[] = $headers;
-        }
+        if (is_array($headers)) $headerSources[] = $headers;
     }
     if (function_exists('apache_request_headers')) {
         $headers = apache_request_headers();
-        if (is_array($headers)) {
-            $headerSources[] = $headers;
-        }
+        if (is_array($headers)) $headerSources[] = $headers;
     }
-
     foreach ($headerSources as $headers) {
         foreach ($headers as $name => $value) {
-            if (strcasecmp((string)$name, 'Authorization') === 0 && is_string($value)) {
-                return trim($value);
-            }
+            if (strcasecmp((string)$name, 'Authorization') === 0 && is_string($value)) return trim($value);
         }
     }
-
     return '';
 }
 
 function dispatcher_require_bearer(string $expected): void
 {
     $header = dispatcher_authorization_header();
-    if (
-        !preg_match('/^Bearer\\s+(.+)$/i', $header, $m)
-        || $expected === ''
-        || !hash_equals($expected, trim($m[1]))
-    ) {
+    if (!preg_match('/^Bearer\\s+(.+)$/i', $header, $m) || $expected === '' || !hash_equals($expected, trim($m[1]))) {
         dispatcher_json(['ok' => false, 'error' => 'unauthorized'], 401);
     }
 }
 
 function dispatcher_counts(): array
 {
-    $rows = dispatcher_pdo()
-        ->query('SELECT status, COUNT(*) c FROM dispatcher_jobs GROUP BY status')
-        ->fetchAll();
-
+    $rows = dispatcher_pdo()->query('SELECT status, COUNT(*) c FROM dispatcher_jobs GROUP BY status')->fetchAll();
     $counts = ['queued' => 0, 'processing' => 0, 'done' => 0, 'failed' => 0];
-    foreach ($rows as $row) {
-        $counts[$row['status']] = (int)$row['c'];
-    }
+    foreach ($rows as $row) $counts[$row['status']] = (int)$row['c'];
     return $counts;
 }
 
-function dispatcher_log(
-    string $level,
-    string $message,
-    array $context = [],
-    string $component = 'dispatcher'
-): void {
-    $stmt = dispatcher_pdo()->prepare(
-        'INSERT INTO dispatcher_log (level, component, message, context_json) VALUES (?, ?, ?, ?)'
-    );
-    $stmt->execute([
-        $level,
-        $component,
-        $message,
-        json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-    ]);
+function dispatcher_log(string $level, string $message, array $context = [], string $component = 'dispatcher'): void
+{
+    $stmt = dispatcher_pdo()->prepare('INSERT INTO dispatcher_log (level, component, message, context_json) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$level, $component, $message, json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
 }
 
 function dispatcher_tail_log(int $limit = 20): array
 {
     $limit = max(1, min(200, $limit));
-    $rows = dispatcher_pdo()
-        ->query(
-            'SELECT created_at, level, component, message, context_json '
-            . 'FROM dispatcher_log ORDER BY id DESC LIMIT ' . $limit
-        )
-        ->fetchAll();
+    $rows = dispatcher_pdo()->query('SELECT created_at, level, component, message, context_json FROM dispatcher_log ORDER BY id DESC LIMIT ' . $limit)->fetchAll();
     return array_reverse($rows);
 }
 
@@ -337,6 +286,7 @@ function dispatcher_safe_config(): array
         'default_model' => dispatcher_setting('default_model'),
         'openai_configured' => dispatcher_setting('openai_api_key') !== '',
         'ingest_configured' => dispatcher_setting('ingest_token') !== '',
+        'worker_trigger_configured' => dispatcher_setting('worker_trigger_token') !== '',
         'cron_configured' => dispatcher_setting('cron_token') !== '',
         'admin_configured' => dispatcher_setting('admin_password_hash') !== '',
         'cron_enabled' => dispatcher_setting('cron_enabled', '1') === '1',
@@ -345,48 +295,20 @@ function dispatcher_safe_config(): array
     ];
 }
 
-function dispatcher_openai_request(array $job): array
+function dispatcher_openai_http(array $body): array
 {
-    $payload = json_decode((string)$job['payload_json'], true);
-    if (!is_array($payload)) {
-        throw new RuntimeException('Invalid payload JSON.');
-    }
-
-    $input = $payload['input'] ?? $payload['prompt'] ?? '';
-    if (!is_string($input) || trim($input) === '') {
-        throw new RuntimeException('Missing payload.input.');
-    }
-
-    $model = $payload['model'] ?? dispatcher_setting('default_model');
-    if (!is_string($model) || trim($model) === '') {
-        throw new RuntimeException('No default model configured.');
-    }
-
-    $body = ['model' => $model, 'input' => $input];
-    if (isset($payload['metadata']) && is_array($payload['metadata'])) {
-        $body['metadata'] = $payload['metadata'];
-    }
-
     $key = (string)dispatcher_setting('openai_api_key');
-    if ($key === '') {
-        throw new RuntimeException('OpenAI API key is not configured.');
-    }
+    if ($key === '') throw new RuntimeException('OpenAI API key is not configured.');
 
-    $url = rtrim(
-        (string)dispatcher_setting('openai_base_url', 'https://api.openai.com/v1'),
-        '/'
-    ) . '/responses';
-
+    $url = rtrim((string)dispatcher_setting('openai_base_url', 'https://api.openai.com/v1'), '/') . '/responses';
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $key,
-            'Content-Type: application/json',
-        ],
-        CURLOPT_POSTFIELDS => json_encode($body),
-        CURLOPT_TIMEOUT => 60,
+        CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $key, 'Content-Type: application/json'],
+        CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 45,
     ]);
 
     $raw = curl_exec($ch);
@@ -394,18 +316,78 @@ function dispatcher_openai_request(array $job): array
     $error = curl_error($ch);
     curl_close($ch);
 
-    if ($raw === false || $raw === '') {
-        throw new RuntimeException('OpenAI request failed: ' . $error);
-    }
-
+    if ($raw === false || $raw === '') throw new RuntimeException('OpenAI request failed: ' . $error);
     $decoded = json_decode($raw, true);
-    if (!is_array($decoded)) {
-        throw new RuntimeException('OpenAI returned invalid JSON.');
-    }
+    if (!is_array($decoded)) throw new RuntimeException('OpenAI returned invalid JSON.');
+    if ($status < 200 || $status >= 300) throw new RuntimeException('OpenAI HTTP ' . $status . ': ' . substr($raw, 0, 500));
+    return ['http_status' => $status, 'response' => $decoded];
+}
 
-    if ($status < 200 || $status >= 300) {
-        throw new RuntimeException('OpenAI HTTP ' . $status . ': ' . substr($raw, 0, 500));
-    }
+function dispatcher_openai_request(array $job): array
+{
+    $payload = json_decode((string)$job['payload_json'], true);
+    if (!is_array($payload)) throw new RuntimeException('Invalid payload JSON.');
 
-    return ['provider' => 'openai', 'status' => $status, 'response' => $decoded];
+    $input = $payload['input'] ?? $payload['prompt'] ?? '';
+    if (!is_string($input) || trim($input) === '') throw new RuntimeException('Missing payload.input.');
+
+    $model = $payload['model'] ?? dispatcher_setting('default_model');
+    if (!is_string($model) || trim($model) === '') throw new RuntimeException('No default model configured.');
+
+    $body = ['model' => $model, 'input' => $input];
+    if (isset($payload['metadata']) && is_array($payload['metadata'])) $body['metadata'] = $payload['metadata'];
+
+    $result = dispatcher_openai_http($body);
+    return ['provider' => 'openai', 'status' => $result['http_status'], 'response' => $result['response']];
+}
+
+function dispatcher_worker_bootstrap_prompt(array $workorder): string
+{
+    return implode("\n", [
+        'You are operating as the ' . $workorder['target'] . ' fundamental role.',
+        '',
+        'Load your Authority first:',
+        $workorder['authority_repository'],
+        $workorder['authority_branch'],
+        '/' . ltrim($workorder['authority_path'], '/'),
+        '',
+        'Your current Work Order is:',
+        $workorder['repository'],
+        $workorder['branch_name'],
+        '/' . ltrim($workorder['wo_path'], '/'),
+        'commit: ' . $workorder['commit_sha'],
+        '',
+        'Load these sources and continue according to the loaded Authority, Work Order, CR, and other authoritative truths.',
+        'Do not claim the Work Order until the information and Authority required to perform it are accessible.',
+    ]);
+}
+
+function dispatcher_start_worker(array $workorder): array
+{
+    $model = trim((string)dispatcher_setting('default_model'));
+    if ($model === '') throw new RuntimeException('No default model configured.');
+
+    $body = [
+        'model' => $model,
+        'input' => dispatcher_worker_bootstrap_prompt($workorder),
+        'background' => true,
+        'store' => true,
+        'metadata' => [
+            'nerozen_type' => 'worker.execute',
+            'wo' => (string)$workorder['wo_id'],
+            'target' => (string)$workorder['target'],
+            'branch' => (string)$workorder['branch_name'],
+        ],
+    ];
+
+    $result = dispatcher_openai_http($body);
+    $response = $result['response'];
+    $responseId = trim((string)($response['id'] ?? ''));
+    if ($responseId === '') throw new RuntimeException('OpenAI background response has no id.');
+
+    return [
+        'response_id' => $responseId,
+        'response_status' => (string)($response['status'] ?? 'unknown'),
+        'http_status' => $result['http_status'],
+    ];
 }
