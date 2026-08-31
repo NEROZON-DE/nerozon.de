@@ -1,0 +1,91 @@
+name: Deploy Platform PREP
+
+on:
+  push:
+    branches:
+      - pre-prod
+    paths:
+      - 'dispatcher/**'
+      - 'github.nerozon.de/**'
+      - '.github/workflows/platform-prep.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: nerozon-platform-prep
+  cancel-in-progress: false
+
+jobs:
+  deploy-platform-prep:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PREP
+        uses: actions/checkout@v4
+
+      - name: Prepare GitHub adapter package
+        run: |
+          set -euo pipefail
+          mkdir -p package-github
+          cp -R github.nerozon.de/. package-github/
+          find package-github -type f \( -name 'RULES.md' -o -name '*-RULES.md' -o -name 'SPEC.md' -o -name '*-SPEC.md' \) -delete
+          find package-github -type d -exec chmod 755 {} \;
+          find package-github -type f -exec chmod 644 {} \;
+
+      - name: Deploy GitHub adapter to PREP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
+          local_path: './package-github/*'
+          remote_path: '/prep.nerozon.de/github/'
+          sftp_only: true
+
+      - name: Deploy GitHub adapter .htaccess to PREP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
+          local_path: './package-github/.htaccess'
+          remote_path: '/prep.nerozon.de/github/'
+          sftp_only: true
+
+      - name: Smoke test GitHub adapter
+        run: |
+          curl --fail --silent --show-error --max-time 15 \
+            'https://github-prep.nerozon.de/'
+
+      - name: Prepare Dispatcher package
+        run: |
+          set -euo pipefail
+          mkdir -p package-dispatcher
+          cp -R dispatcher/. package-dispatcher/
+          find package-dispatcher -type f \( -name 'RULES.md' -o -name '*-RULES.md' -o -name 'SPEC.md' -o -name '*-SPEC.md' \) -delete
+          find package-dispatcher -type d -exec chmod 755 {} \;
+          find package-dispatcher -type f -exec chmod 644 {} \;
+
+      - name: Deploy Dispatcher to PREP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
+          local_path: './package-dispatcher/*'
+          remote_path: '/prep.nerozon.de/dispatcher/'
+          sftp_only: true
+
+      - name: Deploy Dispatcher .htaccess to PREP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
+          local_path: './package-dispatcher/.htaccess'
+          remote_path: '/prep.nerozon.de/dispatcher/'
+          sftp_only: true
+
+      - name: Smoke test Dispatcher
+        run: |
+          curl --fail --silent --show-error --max-time 15 \
+            'https://dispatcher-prep.nerozon.de/status.php'
