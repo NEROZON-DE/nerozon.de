@@ -240,9 +240,43 @@ function dispatcher_now(): string
     return gmdate('Y-m-d\\TH:i:s\\Z');
 }
 
+function dispatcher_authorization_header(): string
+{
+    foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $key) {
+        $value = $_SERVER[$key] ?? '';
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+    }
+
+    $headerSources = [];
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        if (is_array($headers)) {
+            $headerSources[] = $headers;
+        }
+    }
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (is_array($headers)) {
+            $headerSources[] = $headers;
+        }
+    }
+
+    foreach ($headerSources as $headers) {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp((string)$name, 'Authorization') === 0 && is_string($value)) {
+                return trim($value);
+            }
+        }
+    }
+
+    return '';
+}
+
 function dispatcher_require_bearer(string $expected): void
 {
-    $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    $header = dispatcher_authorization_header();
     if (
         !preg_match('/^Bearer\\s+(.+)$/i', $header, $m)
         || $expected === ''
