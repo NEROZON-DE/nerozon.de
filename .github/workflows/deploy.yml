@@ -214,6 +214,17 @@ jobs:
           remote_path: '/dispatcher-deploy/'
           sftp_only: true
 
+      - name: Upload Dispatcher root .htaccess
+        if: steps.check_dispatcher.outputs.deploy == 'true'
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_DEV2 }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}
+          local_path: './package-dispatcher/.htaccess'
+          remote_path: '/dispatcher-deploy/'
+          sftp_only: true
+
       - name: Activate Dispatcher
         if: steps.check_dispatcher.outputs.deploy == 'true'
         run: |
