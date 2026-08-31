@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-const DISPATCHER_VERSION = '0.4.0-dev2';
+const DISPATCHER_VERSION = '0.4.1';
 
 function dispatcher_bootstrap_config(): array
 {
@@ -22,6 +22,7 @@ function dispatcher_bootstrap_config(): array
     }
 
     $config = [
+        'environment' => strtoupper(trim((string)($loaded['environment'] ?? 'UNKNOWN'))),
         'db_host' => (string)($loaded['host'] ?? ''),
         'db_port' => (int)($loaded['port'] ?? 3306),
         'db_name' => (string)($loaded['database'] ?? ''),
@@ -279,8 +280,10 @@ function dispatcher_tail_log(int $limit = 20): array
 
 function dispatcher_safe_config(): array
 {
+    $bootstrap = dispatcher_bootstrap_config();
     return [
         'version' => DISPATCHER_VERSION,
+        'environment' => $bootstrap['environment'],
         'database' => true,
         'default_provider' => dispatcher_setting('default_provider'),
         'default_model' => dispatcher_setting('default_model'),
