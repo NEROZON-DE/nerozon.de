@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-if (PHP_SAPI !== 'cli') {
+// IONOS may expose the shell PHP binary as CGI/FastCGI rather than CLI.
+// A real web request has REQUEST_METHOD set; a shell invocation does not.
+if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] !== '') {
     http_response_code(404);
     exit;
 }
@@ -19,6 +21,11 @@ try {
 
     echo "Init successful\n";
 } catch (Throwable $e) {
-    fwrite(STDERR, "Dispatcher init failed: " . $e->getMessage() . "\n");
+    $message = "Dispatcher init failed: " . $e->getMessage() . "\n";
+    if (defined('STDERR')) {
+        fwrite(STDERR, $message);
+    } else {
+        echo $message;
+    }
     exit(1);
 }
