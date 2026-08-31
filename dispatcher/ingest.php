@@ -9,18 +9,49 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 }
 
 $expectedToken = (string)dispatcher_setting('ingest_token');
-$authorizationHeader = dispatcher_authorization_header();
+$providedToken = '';
 
-if ($authorizationHeader === '') {
-    dispatcher_json(['ok' => false, 'error' => 'authorization_header_missing'], 401);
+// Preferred internal header for environments where Authorization is altered by the web server.
+$customHeader = $_SERVER['HTTP_X_NEROZON_INGEST_TOKEN'] ?? '';
+if (is_string($customHeader) && trim($customHeader) !== '') {
+    $providedToken = trim($customHeader);
 }
 
-if (!preg_match('/^Bearer\\s+(.+)$/i', $authorizationHeader, $bearerMatch)) {
-    dispatcher_json(['ok' => false, 'error' => 'authorization_header_malformed'], 401);
+if ($providedToken === '') {
+    $headerSources = [];
+    if (function_exists('getallheaders')) {
+        $headers = getallheaders();
+        if (is_array($headers)) {
+            $headerSources[] = $headers;
+        }
+    }
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (is_array($headers)) {
+            $headerSources[] = $headers;
+        }
+    }
+
+    foreach ($headerSources as $headers) {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp((string)$name, 'X-Nerozon-Ingest-Token') === 0 && is_string($value)) {
+                $providedToken = trim($value);
+                break 2;
+            }
+        }
+    }
 }
 
-if ($expectedToken === '' || !hash_equals($expectedToken, trim($bearerMatch[1]))) {
-    dispatcher_json(['ok' => false, 'error' => 'token_mismatch'], 401);
+// Standard Bearer auth remains supported as a fallback for compatible environments.
+if ($providedToken === '') {
+    $authorizationHeader = dispatcher_authorization_header();
+    if (preg_match('/^Bearer\\s+(.+)$/i', $authorizationHeader, $bearerMatch)) {
+        $providedToken = trim($bearerMatch[1]);
+    }
+}
+
+if ($expectedToken === '' || $providedToken === '' || !hash_equals($expectedToken, $providedToken)) {
+    dispatcher_json(['ok' => false, 'error' => 'unauthorized'], 401);
 }
 
 $raw = file_get_contents('php://input');
