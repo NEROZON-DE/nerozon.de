@@ -1,84 +1,72 @@
 # NEROZON Dispatcher
 
-`dispatcher.nerozon.de -> /dispatcher/`
-
-Der Dispatcher nimmt LLM-Jobs der API entgegen und verarbeitet sie asynchron per IONOS Cronjob. Im ersten Wurf ist OpenAI angebunden.
+Der Dispatcher nimmt LLM-Jobs der API entgegen und verarbeitet sie asynchron. Im ersten Wurf ist OpenAI angebunden.
 
 ## Persistenz
 
-Der Dispatcher besitzt eine eigene Datenbank. Die Datenbank ist die operative Wahrheit für:
+Der Dispatcher nutzt die Datenbank der aktuellen NEROZON-Umgebung und legt dort ausschließlich Tabellen mit dem Namensraum `dispatcher_*` an.
+
+Die Dispatcher-Tabellen enthalten:
 
 - Dispatcher-Einstellungen
 - OpenAI API-Key und Provider-Einstellungen
 - Ingest- und Cron-Token
 - Control-Login (Benutzer + Passwort-Hash)
 - Queue, Status, Retries und Resultate der Jobs
-- Cron-Läufe
-- Dispatcher-/Cron-Logs
+- Cron-Läufe und Dispatcher-Logs
 
-Im Dateisystem liegen keine Runtime-Jobs oder Dispatcher-Secrets mehr.
+## Environment-Konfiguration
 
-## Bootstrap-Konfiguration
+Die Datenbankverbindung kommt ausschließlich aus:
 
-Secrets liegen nicht im Repo. Auf IONOS liegt:
+`/env-config/database.php`
 
-`/config/dispatcher/config.php`
+Diese Datei ist serverseitige Environment-Konfiguration, gehört nicht ins Repository und wird nicht deployed. Erwartete Rückgabe:
 
-Sie enthält nur, was benötigt wird, um die Dispatcher-Datenbank überhaupt zu erreichen bzw. initial zu provisionieren:
+```php
+return [
+    'host' => '...',
+    'database' => '...',
+    'username' => '...',
+    'password' => '...',
+    'charset' => 'utf8mb4',
+];
+```
 
-- DB Host/Port
-- DB Name
-- DB Benutzer/Passwort
-- temporärer Init-Key
-- optional Provisioning-Credentials für `CREATE DATABASE` / `CREATE USER`
-
-Siehe `dispatcher/config/dispatcher.config.example.php`.
+`/env-config/database.php` darf die eigentlichen Credentials aus einer separaten Secret-Datei laden.
 
 ## Init
 
-`/dispatcher/init.php`
+`dispatcher/init.php` ist ausschließlich über PHP CLI ausführbar. HTTP-Aufrufe liefern 404.
 
-Init ist absichtlich wiederholt ausführbar:
+Beispiel aus dem Environment-Root:
 
-- `CREATE DATABASE IF NOT EXISTS` (wenn konfiguriert/erlaubt)
-- `CREATE USER IF NOT EXISTS` und GRANT (wenn Provisioning aktiviert und vom Hosting erlaubt)
+```bash
+php dispatcher/init.php
+```
+
+Init ist idempotent:
+
 - `CREATE TABLE IF NOT EXISTS`
 - fehlende Settings via `INSERT IGNORE`
-- keine Tabellen, Daten, Settings oder Credentials werden gelöscht oder überschrieben
+- keine bestehenden Tabellen, Daten, Settings oder Credentials werden gelöscht oder überschrieben
 
-Erstmalig erzeugte Admin-/Ingest-/Cron-Credentials werden nur beim erstmaligen Anlegen im Init-Output ausgegeben.
+Beim ersten Lauf werden Admin-Passwort, Ingest-Token und Cron-Token erzeugt und einmalig im CLI-Output ausgegeben. Diese Werte müssen direkt gesichert werden.
 
-Browser-Aufruf:
+## Aktuelle Tabellen
 
-`https://dispatcher.nerozon.de/init.php?key=<INIT_KEY>`
-
-CLI-Aufruf benötigt keinen Init-Key.
-
-Hinweis: Falls IONOS im Hosting-Paket `CREATE DATABASE` oder `CREATE USER` nicht erlaubt, werden Datenbank und DB-Benutzer einmalig im IONOS Panel angelegt. Init übernimmt danach Tabellen und Dispatcher-Inhalte.
+- `dispatcher_settings`
+- `dispatcher_jobs`
+- `dispatcher_cron_runs`
+- `dispatcher_log`
 
 ## Endpunkte
 
-- `GET /index.php` — Login-geschützte Control-Seite mit Status und DB-basierten Einstellungen
+- `GET /index.php` — Login-geschützte Control-Seite
 - `GET /status.php` — maschinenlesbarer Status ohne sensitive Werte
-- `POST /ingest.php` — nimmt API-Payloads entgegen und schreibt Jobs in die DB
-- `GET /cron.php?token=...` — verarbeitet DB-Queue und protokolliert jeden Cron-Lauf
-- `GET /init.php?key=...` — idempotente Initialisierung
-
-## IONOS Cronjob
-
-`https://dispatcher.nerozon.de/cron.php?token=<CRON_TOKEN>`
-
-Empfehlung erster Wurf: alle 5 Minuten. Laufintervall und Jobs pro Lauf sind getrennte Stellgrößen.
-
-## Beispiel Ingest
-
-```bash
-curl -X POST https://dispatcher.nerozon.de/ingest.php \
-  -H "Authorization: Bearer <INGEST_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{"source":"api","type":"llm.request","payload":{"input":"Sag kurz Hallo"}}'
-```
+- `POST /ingest.php` — nimmt API-Payloads entgegen und legt Jobs an
+- `GET /cron.php?token=...` — verarbeitet die Queue und protokolliert Cron-Läufe
 
 ## Architekturentscheidung
 
-Die API ruft OpenAI nicht direkt auf. Sie gibt Arbeit an den Dispatcher. Dadurch liegen Routing, Kostenkontrolle, Retry, Providerwechsel, Audit und Monitoring an einer kontrollierten Stelle.
+Die API ruft externe LLM-Anbieter nicht direkt auf. Sie gibt Arbeit an den Dispatcher. Routing, Kostenkontrolle, Retries, Providerwechsel, Audit und Monitoring bleiben damit an einer kontrollierten Grenze.
