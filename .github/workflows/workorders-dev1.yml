@@ -125,9 +125,22 @@ jobs:
 
             QUEUED="workorders/queued/$(basename "$FILE")"
             mkdir -p workorders/queued
-            git mv "$FILE" "$QUEUED"
-            git add "$QUEUED"
-            git commit -m "Queue ${WO}"
+
+            if [[ -f "$QUEUED" ]]; then
+              if cmp -s "$FILE" "$QUEUED"; then
+                echo "Queued copy already exists and is identical; reconciling duplicate request for ${WO}."
+                git rm "$FILE"
+                git commit -m "Reconcile queued ${WO}"
+              else
+                echo "Work Order conflict: request and queued copies differ for ${WO}." >&2
+                exit 1
+              fi
+            else
+              git mv "$FILE" "$QUEUED"
+              git add "$QUEUED"
+              git commit -m "Queue ${WO}"
+            fi
+
             git push origin HEAD:dev1
 
             QUEUED_COMMIT=$(git rev-parse HEAD)
