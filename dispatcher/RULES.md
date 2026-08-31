@@ -11,10 +11,12 @@ Der Dispatcher ist die kontrollierte Grenze zwischen internen NEROZON APIs und e
 
 ## Persistenz
 
-- Der Dispatcher besitzt eine eigene Datenbank.
-- Die Dispatcher-Datenbank ist die operative Wahrheit für Settings, Secrets, Queue, Ergebnisse, Retries, Cron-Läufe und Logs.
+- Jede NEROZON-Umgebung besitzt eine eigene Datenbank. Der Dispatcher nutzt die Datenbank seiner aktuellen Umgebung.
+- Innerhalb dieser Datenbank verwendet der Dispatcher den Tabellen-Namensraum `dispatcher_*`.
+- Die Dispatcher-Tabellen sind die operative Wahrheit für Settings, Secrets, Queue, Ergebnisse, Retries, Cron-Läufe und Logs.
 - Runtime-Jobs werden nicht parallel im Dateisystem persistiert.
-- `/config/dispatcher/config.php` enthält nur Bootstrap-/Provisioning-Zugang zur Dispatcher-Datenbank und keine normale Dispatcher-Konfiguration.
+- `/env-config/database.php` ist serverseitige Environment-Konfiguration und gehört nicht ins Repository.
+- Die eigentlichen DB-Credentials dürfen außerhalb des Environment-Webroots in einer separaten Secret-Datei liegen; `/env-config/database.php` darf diese lediglich laden.
 - Init muss idempotent sein: fehlende Strukturen und Defaults dürfen ergänzt, vorhandene Daten oder Settings aber nicht gelöscht oder überschrieben werden.
 - Destruktive Schemaänderungen gehören nicht in INIT und nicht in normale Runtime-Requests.
 
@@ -26,10 +28,11 @@ Der Dispatcher ist die kontrollierte Grenze zwischen internen NEROZON APIs und e
 
 ## Zugriff
 
-- Control-Seite: Login geschützt; Credentials liegen als Benutzer + Passwort-Hash in der Dispatcher-Datenbank.
-- Ingest-Endpunkt: Bearer Token Pflicht; Token liegt in der Dispatcher-Datenbank.
-- Cron-Endpunkt: Cron Token Pflicht, außer CLI-Aufruf; Token liegt in der Dispatcher-Datenbank.
-- Init-Endpunkt benötigt außerhalb CLI einen separaten Bootstrap-Init-Key aus `/config`.
+- Control-Seite: Login geschützt; Credentials liegen als Benutzer + Passwort-Hash in den Dispatcher-Settings.
+- Ingest-Endpunkt: Bearer Token Pflicht; Token liegt in den Dispatcher-Settings.
+- Cron-Endpunkt: Cron Token Pflicht, außer CLI-Aufruf; Token liegt in den Dispatcher-Settings.
+- Init darf nur über CLI ausgeführt werden. Ein HTTP-Aufruf von `init.php` wird nicht angeboten.
+- Der von IONOS bereitgestellte DB-User besitzt technisch auch DDL-Rechte. Runtime-Code darf deshalb keine generischen DDL-Funktionen oder Schema-Endpunkte anbieten.
 
 ## Betrieb
 
