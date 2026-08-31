@@ -11,42 +11,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 $expectedToken = (string)dispatcher_setting('ingest_token');
 $providedToken = '';
 
-// Preferred internal header for environments where Authorization is altered by the web server.
-$customHeader = $_SERVER['HTTP_X_NEROZON_INGEST_TOKEN'] ?? '';
-if (is_string($customHeader) && trim($customHeader) !== '') {
-    $providedToken = trim($customHeader);
+// Canonical contract: Authorization: Bearer <token>.
+// On the verified IONOS CGI/FastCGI runtime the root .htaccess preserves
+// Authorization as REDIRECT_HTTP_AUTHORIZATION, which the helper reads.
+$authorizationHeader = dispatcher_authorization_header();
+if (preg_match('/^Bearer\s+(.+)$/i', $authorizationHeader, $bearerMatch)) {
+    $providedToken = trim($bearerMatch[1]);
 }
 
+// DEV/internal fallback. Normal X-* headers are passed through unchanged by IONOS.
 if ($providedToken === '') {
-    $headerSources = [];
-    if (function_exists('getallheaders')) {
-        $headers = getallheaders();
-        if (is_array($headers)) {
-            $headerSources[] = $headers;
-        }
+    $customHeader = $_SERVER['HTTP_X_NEROZON_INGEST_TOKEN'] ?? '';
+    if (is_string($customHeader) && trim($customHeader) !== '') {
+        $providedToken = trim($customHeader);
     }
-    if (function_exists('apache_request_headers')) {
-        $headers = apache_request_headers();
-        if (is_array($headers)) {
-            $headerSources[] = $headers;
-        }
-    }
+}
 
-    foreach ($headerSources as $headers) {
+if ($providedToken === '' && function_exists('getallheaders')) {
+    $headers = getallheaders();
+    if (is_array($headers)) {
         foreach ($headers as $name => $value) {
             if (strcasecmp((string)$name, 'X-Nerozon-Ingest-Token') === 0 && is_string($value)) {
                 $providedToken = trim($value);
-                break 2;
+                break;
             }
         }
-    }
-}
-
-// Standard Bearer auth remains supported as a fallback for compatible environments.
-if ($providedToken === '') {
-    $authorizationHeader = dispatcher_authorization_header();
-    if (preg_match('/^Bearer\\s+(.+)$/i', $authorizationHeader, $bearerMatch)) {
-        $providedToken = trim($bearerMatch[1]);
     }
 }
 
