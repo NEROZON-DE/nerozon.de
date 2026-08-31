@@ -74,8 +74,9 @@ if ($action === 'register') {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'registered')
         ON DUPLICATE KEY UPDATE
           target=VALUES(target), repository=VALUES(repository), branch_name=VALUES(branch_name),
-          wo_path=VALUES(wo_path), commit_sha=VALUES(commit_sha), authority_repository=VALUES(authority_repository),
-          authority_branch=VALUES(authority_branch), authority_path=VALUES(authority_path)"
+          wo_path=IF(status='registered', VALUES(wo_path), wo_path),
+          commit_sha=IF(status='registered', VALUES(commit_sha), commit_sha),
+          authority_repository=VALUES(authority_repository), authority_branch=VALUES(authority_branch), authority_path=VALUES(authority_path)"
     );
     $stmt->execute([$woId, $target, $repository, $branch, $path, $commit, $authorityRepository, $authorityBranch, $authorityPath]);
     dispatcher_log('info', 'Work Order registered', ['wo' => $woId, 'target' => $target, 'branch' => $branch, 'path' => $path], 'workorder');
@@ -103,8 +104,9 @@ if ($action === 'start') {
         ]);
     }
 
+    // A Work Order remains queueable until OpenAI confirms acceptance with a response id.
     $update = $pdo->prepare(
-        "UPDATE dispatcher_workorders SET wo_path=?, commit_sha=?, status='starting', error_text=NULL WHERE wo_id=?"
+        "UPDATE dispatcher_workorders SET wo_path=?, commit_sha=?, status='queued', error_text=NULL WHERE wo_id=?"
     );
     $update->execute([$path, $commit, $woId]);
 
@@ -133,10 +135,10 @@ if ($action === 'start') {
             'openai_status' => $execution['response_status'],
         ], 202);
     } catch (Throwable $e) {
-        $failed = $pdo->prepare("UPDATE dispatcher_workorders SET status='start_failed', error_text=? WHERE wo_id=?");
+        $failed = $pdo->prepare("UPDATE dispatcher_workorders SET status='queued', error_text=? WHERE wo_id=?");
         $failed->execute([$e->getMessage(), $woId]);
-        dispatcher_log('error', 'Worker start failed', ['wo' => $woId, 'error' => $e->getMessage()], 'worker');
-        dispatcher_json(['ok' => false, 'error' => 'worker_start_failed', 'detail' => $e->getMessage()], 502);
+        dispatcher_log('error', 'Worker start failed; Work Order remains queued', ['wo' => $woId, 'error' => $e->getMessage()], 'worker');
+        dispatcher_json(['ok' => false, 'error' => 'worker_start_failed', 'detail' => $e->getMessage(), 'status' => 'queued'], 502);
     }
 }
 
