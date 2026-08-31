@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DISPATCHER_URL: https://dispatcher-dev2.nerozon.de/workorder.php
+  DISPATCHER_URL: https://dispatcher-prep.nerozon.de/workorder.php
 
 jobs:
   queue-workorders:
@@ -63,12 +63,12 @@ jobs:
         if: steps.workorders.outputs.found == 'true'
         shell: bash
         env:
-          WORKER_TRIGGER_TOKEN: ${{ secrets.DISPATCHER_WORKER_TRIGGER_TOKEN_DEV2 }}
+          WORKER_TRIGGER_TOKEN: ${{ secrets.DISPATCHER_WORKER_TRIGGER_TOKEN_PREP }}
         run: |
           set -euo pipefail
 
           if [[ -z "${WORKER_TRIGGER_TOKEN:-}" ]]; then
-            echo "Missing GitHub secret DISPATCHER_WORKER_TRIGGER_TOKEN_DEV2" >&2
+            echo "Missing GitHub secret DISPATCHER_WORKER_TRIGGER_TOKEN_PREP" >&2
             exit 1
           fi
 
