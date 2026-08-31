@@ -31,7 +31,9 @@ Der Dispatcher ist die kontrollierte Grenze zwischen internen NEROZON APIs und e
 - Control-Seite: Login geschützt; Credentials liegen als Benutzer + Passwort-Hash in den Dispatcher-Settings.
 - Ingest-Endpunkt: Bearer Token Pflicht; Token liegt in den Dispatcher-Settings.
 - Cron-Endpunkt: Cron Token Pflicht, außer CLI-Aufruf; Token liegt in den Dispatcher-Settings.
-- Init darf nur über CLI ausgeführt werden. Ein HTTP-Aufruf von `init.php` wird nicht angeboten.
+- Auf dem aktuellen IONOS-Altvertrag darf `init.php` per Browser ausgeführt werden, weil der bereitgestellte PHP-Shell-Aufruf als CGI arbeitet.
+- Browser-Init ist ausschließlich erlaubt, wenn die serverseitige Datei `/env-config/admin-mode.php` exakt `true` zurückgibt. Fehlt die Datei oder gibt sie nicht `true` zurück, antwortet `init.php` mit HTTP 404.
+- `admin-mode.php` gehört nicht ins Repository und muss außerhalb gezielter Administrationsarbeiten auf `false` stehen.
 - Der von IONOS bereitgestellte DB-User besitzt technisch auch DDL-Rechte. Runtime-Code darf deshalb keine generischen DDL-Funktionen oder Schema-Endpunkte anbieten.
 
 ## Betrieb
