@@ -32,19 +32,29 @@ try {
 
     $functionCalls = [];
     $functionCallDiagnostics = [];
+    $assistantTexts = [];
     foreach (($response['output'] ?? []) as $item) {
-        if (!is_array($item) || ($item['type'] ?? '') !== 'function_call') continue;
-        $functionCalls[] = $item;
-        $args = json_decode((string)($item['arguments'] ?? '{}'), true);
-        if (!is_array($args)) $args = ['_invalid_arguments' => true];
-        if (array_key_exists('content', $args)) {
-            $args['content'] = '[content omitted; ' . strlen((string)$args['content']) . ' bytes]';
+        if (!is_array($item)) continue;
+        if (($item['type'] ?? '') === 'function_call') {
+            $functionCalls[] = $item;
+            $args = json_decode((string)($item['arguments'] ?? '{}'), true);
+            if (!is_array($args)) $args = ['_invalid_arguments' => true];
+            if (array_key_exists('content', $args)) {
+                $args['content'] = '[content omitted; ' . strlen((string)$args['content']) . ' bytes]';
+            }
+            $functionCallDiagnostics[] = [
+                'name' => (string)($item['name'] ?? ''),
+                'call_id' => (string)($item['call_id'] ?? ''),
+                'arguments' => $args,
+            ];
+            continue;
         }
-        $functionCallDiagnostics[] = [
-            'name' => (string)($item['name'] ?? ''),
-            'call_id' => (string)($item['call_id'] ?? ''),
-            'arguments' => $args,
-        ];
+        if (($item['type'] ?? '') !== 'message') continue;
+        foreach (($item['content'] ?? []) as $content) {
+            if (!is_array($content) || !in_array(($content['type'] ?? ''), ['output_text', 'text'], true)) continue;
+            $text = trim((string)($content['text'] ?? ''));
+            if ($text !== '') $assistantTexts[] = $text;
+        }
     }
 
     dispatcher_log('info', 'Worker response reconciled', [
@@ -60,23 +70,35 @@ try {
     }
 
     if (in_array($openaiStatus, ['failed', 'cancelled', 'incomplete'], true)) {
-        dispatcher_json(['ok' => false, 'wo' => $woId, 'action' => 'terminal_failure', 'response_id' => $responseId, 'openai_status' => $openaiStatus, 'error' => $response['error'] ?? $response['incomplete_details'] ?? null, 'function_calls' => $functionCallDiagnostics], 409);
+        $providerError = $response['error'] ?? $response['incomplete_details'] ?? null;
+        $message = is_array($providerError) ? json_encode($providerError, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : (string)$providerError;
+        if ($message !== '') $pdo->prepare('UPDATE dispatcher_workorders SET error_text=? WHERE wo_id=?')->execute([$message, $woId]);
+        dispatcher_json(['ok' => false, 'wo' => $woId, 'action' => 'terminal_failure', 'response_id' => $responseId, 'openai_status' => $openaiStatus, 'error' => $providerError, 'function_calls' => $functionCallDiagnostics], 409);
     }
 
     if ($openaiStatus === 'completed' && $functionCalls === []) {
-        $message = 'Worker completed without requesting a tool call; reconciliation stopped to prevent a continuation loop.';
+        $abortReason = null;
+        foreach ($assistantTexts as $text) {
+            $pos = strpos($text, 'ABORT:');
+            if ($pos !== false) {
+                $abortReason = trim(substr($text, $pos));
+                break;
+            }
+        }
+        $message = $abortReason ?: 'Worker completed without requesting a tool call; reconciliation stopped to prevent a continuation loop.';
         $pdo->prepare('UPDATE dispatcher_workorders SET error_text=? WHERE wo_id=?')->execute([$message, $woId]);
-        dispatcher_log('warning', 'Worker completed without action', [
+        dispatcher_log('warning', $abortReason ? 'Worker aborted execution' : 'Worker completed without action', [
             'wo' => $woId,
             'response_id' => $responseId,
             'workorder_status' => (string)$workorder['status'],
             'wo_path' => (string)$workorder['wo_path'],
+            'reason' => $message,
         ], 'worker');
         dispatcher_json([
             'ok' => false,
             'wo' => $woId,
-            'action' => 'stalled',
-            'error' => 'worker_completed_without_action',
+            'action' => $abortReason ? 'aborted' : 'stalled',
+            'error' => $abortReason ? 'worker_aborted' : 'worker_completed_without_action',
             'message' => $message,
             'response_id' => $responseId,
             'openai_status' => $openaiStatus,
