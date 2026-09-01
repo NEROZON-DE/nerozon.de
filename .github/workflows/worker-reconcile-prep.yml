@@ -1,0 +1,31 @@
+name: Worker Reconcile PREP
+
+on:
+  push:
+    branches:
+      - pre-prod
+    paths:
+      - '.github/workflows/worker-reconcile-prep.yml'
+  workflow_dispatch:
+
+jobs:
+  reconcile-once:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile one worker turn
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 45 \
+            'https://dispatcher-prep.nerozon.de/worker-reconcile.php?wo=WO-20260901141358&prep_e2e=1'
+          echo
+
+      - name: Inspect Git Work Order lifecycle paths
+        run: |
+          set -euo pipefail
+          for state in queued in_progress closed; do
+            code=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/NEROZON-DE/nerozon.de/contents/workorders/${state}/WO-20260901141358.md?ref=dev1")
+            echo "${state}: ${code}"
+          done
