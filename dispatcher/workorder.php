@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/src/bootstrap.php';
+require __DIR__ . '/src/worker-start.php';
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     dispatcher_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
@@ -114,7 +114,7 @@ if ($action === 'start') {
     $workorder = $select->fetch();
 
     try {
-        $execution = dispatcher_start_worker($workorder);
+        $execution = dispatcher_start_worker_with_tools($workorder);
         $done = $pdo->prepare(
             "UPDATE dispatcher_workorders
              SET status='running', openai_response_id=?, openai_status=?, error_text=NULL
