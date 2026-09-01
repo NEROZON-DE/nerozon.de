@@ -23,6 +23,7 @@ function dispatcher_start_worker_with_tools(array $workorder): array
         '',
         'Do not finish with a prose-only response while a required lifecycle or implementation action remains.',
         'If a required action cannot be completed, stop and leave the Work Order in its current canonical Git state. Do not fabricate a successful transition.',
+        'Whenever you stop or abort without completing the Work Order, your final assistant response MUST contain a concise explanation beginning exactly with "ABORT: ". State the concrete blocking condition, what you tried or established, and what is required to continue. Do not use ABORT for a successfully completed Work Order.',
     ]);
 
     $body = [
