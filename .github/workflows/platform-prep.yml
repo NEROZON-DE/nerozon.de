@@ -91,3 +91,29 @@ jobs:
           curl --fail --silent --show-error --max-time 15 \
             --retry 6 --retry-all-errors --retry-delay 3 \
             'https://dispatcher-prep.nerozon.de/status.php'
+
+      - name: Reconcile DEV1 worker end-to-end
+        run: |
+          set -euo pipefail
+          WO='WO-20260831201752'
+          CLOSED_URL="https://api.github.com/repos/NEROZON-DE/nerozon.de/contents/workorders/closed/${WO}.md?ref=dev1"
+          RECONCILE_URL="https://dispatcher-prep.nerozon.de/worker-reconcile.php?wo=${WO}&prep_e2e=1"
+
+          for attempt in $(seq 1 24); do
+            echo "Reconcile attempt ${attempt}"
+            curl --fail --silent --show-error --max-time 45 "$RECONCILE_URL" || true
+            echo
+
+            status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "$CLOSED_URL")
+            if [ "$status" = '200' ]; then
+              echo "Work Order reached Git closed state."
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo 'Work Order did not reach closed state within reconciliation window.' >&2
+          exit 1
