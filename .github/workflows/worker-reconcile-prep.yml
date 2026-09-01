@@ -8,7 +8,7 @@ on:
       - '.github/workflows/worker-reconcile-prep.yml'
   workflow_dispatch:
 
-# Controlled probe turn: 2
+# Controlled probe turn: 3
 jobs:
   reconcile-once:
     runs-on: ubuntu-latest
