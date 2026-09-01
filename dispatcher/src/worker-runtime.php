@@ -122,10 +122,10 @@ function dispatcher_openai_get_response(string $responseId): array
 function dispatcher_github_adapter_runtime(): array
 {
     $root = dirname(__DIR__, 2);
-    $secretFile = $root . '/._secrets/github.php';
-    if (!is_file($secretFile) || !is_readable($secretFile)) throw new RuntimeException('GitHub adapter secrets are unavailable to Dispatcher.');
+    $secretFile = $root . '/env-config/github-token.php';
+    if (!is_file($secretFile) || !is_readable($secretFile)) throw new RuntimeException('GitHub adapter token configuration is unavailable to Dispatcher.');
     $secrets = require $secretFile;
-    if (!is_array($secrets)) throw new RuntimeException('Invalid GitHub adapter secrets.');
+    if (!is_array($secrets)) throw new RuntimeException('Invalid GitHub adapter token configuration.');
     $token = trim((string)($secrets['adapter_token'] ?? ''));
     if ($token === '') throw new RuntimeException('GitHub adapter token is not configured.');
 
