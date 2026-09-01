@@ -8,17 +8,17 @@ on:
       - '.github/workflows/worker-reconcile-prep.yml'
   workflow_dispatch:
 
-# Controlled probe turn: 4
+# Controlled probe turn: inspect stalled response
 jobs:
   reconcile-once:
     runs-on: ubuntu-latest
     steps:
-      - name: Reconcile one worker turn
+      - name: Inspect reconciliation response
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 45 \
+          curl --silent --show-error --max-time 45 \
+            --write-out '\nHTTP_STATUS:%{http_code}\n' \
             'https://dispatcher-prep.nerozon.de/worker-reconcile.php?wo=WO-20260901141358&prep_e2e=1'
-          echo
 
       - name: Inspect Git Work Order lifecycle paths
         run: |
