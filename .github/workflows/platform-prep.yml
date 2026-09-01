@@ -89,3 +89,157 @@ jobs:
         run: |
           curl --fail --silent --show-error --max-time 15 \
             'https://dispatcher-prep.nerozon.de/status.php'
+
+      - name: Prepare one-time adapter integration self-test
+        run: |
+          set -euo pipefail
+          SELFTEST_KEY="$(openssl rand -hex 24)"
+          echo "::add-mask::$SELFTEST_KEY"
+          echo "SELFTEST_KEY=$SELFTEST_KEY" >> "$GITHUB_ENV"
+          mkdir -p selftest
+          cat > selftest/__adapter-selftest.php <<'PHP'
+          <?php
+          declare(strict_types=1);
+
+          $expected = '__SELFTEST_KEY__';
+          $provided = (string)($_GET['key'] ?? '');
+          if ($provided === '' || !hash_equals($expected, $provided)) {
+              http_response_code(404);
+              exit;
+          }
+
+          header('Content-Type: application/json; charset=utf-8');
+          header('Cache-Control: no-store');
+
+          $cleanupPath = null;
+          $cleanupSha = null;
+
+          try {
+              require_once __DIR__ . '/src/worker-runtime.php';
+
+              $read = dispatcher_call_github_adapter([
+                  'operation' => 'read_file',
+                  'repository' => 'NEROZON-DE/authority-implementation',
+                  'path' => 'ROLE.md',
+                  'ref' => 'main',
+              ], 'SELFTEST', 'github_read_file');
+
+              if (!(bool)($read['ok'] ?? false) || trim((string)($read['content'] ?? '')) === '') {
+                  throw new RuntimeException('Adapter read test failed.');
+              }
+
+              $suffix = substr(hash('sha256', $expected), 0, 12);
+              $sourcePath = 'github.nerozon.de/.adapter-selftest-' . $suffix . '.tmp';
+              $destinationPath = 'github.nerozon.de/.adapter-selftest-' . $suffix . '-moved.tmp';
+              $content = "NEROZON PREP adapter integration self-test\n";
+
+              $write = dispatcher_call_github_adapter([
+                  'operation' => 'write_file',
+                  'repository' => 'NEROZON-DE/nerozon.de',
+                  'path' => $sourcePath,
+                  'ref' => 'pre-prod',
+                  'content' => $content,
+                  'message' => 'PREP adapter integration self-test: write',
+                  'expected_sha' => '',
+              ], 'SELFTEST', 'github_write_file');
+
+              $sourceSha = trim((string)($write['sha'] ?? ''));
+              if (!(bool)($write['ok'] ?? false) || $sourceSha === '') {
+                  throw new RuntimeException('Adapter write test failed.');
+              }
+
+              $move = dispatcher_call_github_adapter([
+                  'operation' => 'move_file',
+                  'repository' => 'NEROZON-DE/nerozon.de',
+                  'source_path' => $sourcePath,
+                  'destination_path' => $destinationPath,
+                  'ref' => 'pre-prod',
+                  'message' => 'PREP adapter integration self-test: move',
+                  'expected_sha' => $sourceSha,
+              ], 'SELFTEST', 'github_move_file');
+
+              if (!(bool)($move['ok'] ?? false)) {
+                  throw new RuntimeException('Adapter move test failed.');
+              }
+
+              $moved = dispatcher_call_github_adapter([
+                  'operation' => 'read_file',
+                  'repository' => 'NEROZON-DE/nerozon.de',
+                  'path' => $destinationPath,
+                  'ref' => 'pre-prod',
+              ], 'SELFTEST', 'github_read_file');
+
+              $cleanupPath = $destinationPath;
+              $cleanupSha = trim((string)($moved['sha'] ?? ''));
+              if (!(bool)($moved['ok'] ?? false) || (string)($moved['content'] ?? '') !== $content || $cleanupSha === '') {
+                  throw new RuntimeException('Adapter post-move read verification failed.');
+              }
+
+              echo json_encode([
+                  'ok' => true,
+                  'dispatcher_to_adapter_auth' => true,
+                  'authority_read' => true,
+                  'nerozon_write' => true,
+                  'nerozon_move' => true,
+                  'post_move_read' => true,
+              ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          } catch (Throwable $e) {
+              http_response_code(500);
+              echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+          } finally {
+              if ($cleanupPath !== null && $cleanupSha !== null) {
+                  try {
+                      $root = dirname(__DIR__);
+                      $secrets = require $root . '/env-config/github-token.php';
+                      $config = require $root . '/env-config/github.php';
+                      $githubToken = trim((string)($secrets['github_token'] ?? ''));
+                      $apiBase = rtrim((string)($config['github_api_base'] ?? 'https://api.github.com'), '/');
+                      if ($githubToken !== '') {
+                          $url = $apiBase . '/repos/NEROZON-DE/nerozon.de/contents/' . implode('/', array_map('rawurlencode', explode('/', $cleanupPath)));
+                          $ch = curl_init($url);
+                          curl_setopt_array($ch, [
+                              CURLOPT_RETURNTRANSFER => true,
+                              CURLOPT_CUSTOMREQUEST => 'DELETE',
+                              CURLOPT_HTTPHEADER => [
+                                  'Accept: application/vnd.github+json',
+                                  'Authorization: Bearer ' . $githubToken,
+                                  'X-GitHub-Api-Version: 2022-11-28',
+                                  'User-Agent: NEROZON-PREP-Selftest',
+                                  'Content-Type: application/json',
+                              ],
+                              CURLOPT_POSTFIELDS => json_encode([
+                                  'message' => 'PREP adapter integration self-test: cleanup',
+                                  'sha' => $cleanupSha,
+                                  'branch' => 'pre-prod',
+                              ], JSON_UNESCAPED_SLASHES),
+                              CURLOPT_CONNECTTIMEOUT => 10,
+                              CURLOPT_TIMEOUT => 30,
+                          ]);
+                          curl_exec($ch);
+                          curl_close($ch);
+                      }
+                  } catch (Throwable) {
+                  }
+              }
+              @unlink(__FILE__);
+          }
+          PHP
+          sed -i "s/__SELFTEST_KEY__/$SELFTEST_KEY/" selftest/__adapter-selftest.php
+
+      - name: Deploy one-time adapter integration self-test
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with:
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
+          server: ${{ secrets.IONOS_SFTP_HOST }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
+          local_path: './selftest/*'
+          remote_path: '/dispatcher/'
+          sftp_only: true
+
+      - name: Run adapter integration self-test
+        run: |
+          set -euo pipefail
+          RESULT="$(curl --fail --silent --show-error --max-time 60 \
+            "https://dispatcher-prep.nerozon.de/__adapter-selftest.php?key=${SELFTEST_KEY}")"
+          echo "$RESULT"
+          echo "$RESULT" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("ok") is True; assert all(d.get(k) is True for k in ["dispatcher_to_adapter_auth","authority_read","nerozon_write","nerozon_move","post_move_read"])'
