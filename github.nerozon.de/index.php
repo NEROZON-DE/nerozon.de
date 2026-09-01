@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-const NEROZON_GITHUB_ADAPTER_VERSION = '0.2.0-prep';
+const NEROZON_GITHUB_ADAPTER_VERSION = '0.2.1-prep';
 
 function json_response(array $data, int $status = 200): never
 {
@@ -34,9 +34,9 @@ function load_runtime_config(): array
 {
     $root = dirname(__DIR__);
     $configFile = $root . '/env-config/github.php';
-    $secretFile = $root . '/._secrets/github.php';
+    $secretFile = $root . '/env-config/github-token.php';
     if (!is_file($configFile) || !is_readable($configFile)) throw new RuntimeException('GitHub adapter environment configuration is unavailable.');
-    if (!is_file($secretFile) || !is_readable($secretFile)) throw new RuntimeException('GitHub adapter secrets are unavailable.');
+    if (!is_file($secretFile) || !is_readable($secretFile)) throw new RuntimeException('GitHub adapter token configuration is unavailable.');
 
     $config = require $configFile;
     $secrets = require $secretFile;
