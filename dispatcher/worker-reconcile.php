@@ -30,7 +30,19 @@ try {
     $openaiStatus = (string)($response['status'] ?? 'unknown');
     $pdo->prepare('UPDATE dispatcher_workorders SET openai_status=? WHERE wo_id=?')->execute([$openaiStatus, $woId]);
 
-    dispatcher_log('info', 'Worker response reconciled', ['wo' => $woId, 'response_id' => $responseId, 'openai_status' => $openaiStatus], 'worker');
+    $functionCalls = [];
+    foreach (($response['output'] ?? []) as $item) {
+        if (is_array($item) && ($item['type'] ?? '') === 'function_call') {
+            $functionCalls[] = $item;
+        }
+    }
+
+    dispatcher_log('info', 'Worker response reconciled', [
+        'wo' => $woId,
+        'response_id' => $responseId,
+        'openai_status' => $openaiStatus,
+        'function_calls' => count($functionCalls),
+    ], 'worker');
 
     if (in_array($openaiStatus, ['queued', 'in_progress'], true)) {
         dispatcher_json(['ok' => true, 'wo' => $woId, 'action' => 'wait', 'response_id' => $responseId, 'openai_status' => $openaiStatus]);
@@ -38,6 +50,28 @@ try {
 
     if (in_array($openaiStatus, ['failed', 'cancelled', 'incomplete'], true)) {
         dispatcher_json(['ok' => false, 'wo' => $woId, 'action' => 'terminal_failure', 'response_id' => $responseId, 'openai_status' => $openaiStatus, 'error' => $response['error'] ?? $response['incomplete_details'] ?? null], 409);
+    }
+
+    if ($openaiStatus === 'completed' && $functionCalls === []) {
+        $message = 'Worker completed without requesting a tool call; reconciliation stopped to prevent a continuation loop.';
+        $pdo->prepare('UPDATE dispatcher_workorders SET error_text=? WHERE wo_id=?')->execute([$message, $woId]);
+        dispatcher_log('warning', 'Worker completed without action', [
+            'wo' => $woId,
+            'response_id' => $responseId,
+            'workorder_status' => (string)$workorder['status'],
+            'wo_path' => (string)$workorder['wo_path'],
+        ], 'worker');
+        dispatcher_json([
+            'ok' => false,
+            'wo' => $woId,
+            'action' => 'stalled',
+            'error' => 'worker_completed_without_action',
+            'message' => $message,
+            'response_id' => $responseId,
+            'openai_status' => $openaiStatus,
+            'workorder_status' => (string)$workorder['status'],
+            'wo_path' => (string)$workorder['wo_path'],
+        ], 409);
     }
 
     $continuation = dispatcher_continue_worker($workorder, $response);
