@@ -6,66 +6,244 @@ const DISPATCHER_VERSION = '0.4.2';
 
 function dispatcher_bootstrap_config(): array
 {
-    static $config;
-    if ($config !== null) return $config;
-
-    $root = dirname(__DIR__, 2);
-    $file = $root . '/env-config/database.php';
-    if (!is_file($file) || !is_readable($file)) throw new RuntimeException('Database configuration is unavailable.');
-    $loaded = require $file;
-    if (!is_array($loaded)) throw new RuntimeException('Invalid database configuration.');
-    foreach (['host', 'database', 'username', 'password'] as $key) {
-        if (!array_key_exists($key, $loaded)) throw new RuntimeException('Missing database configuration: ' . $key);
+    static $config = null;
+    if ($config !== null) {
+        return $config;
     }
-    $loaded['environment'] = strtoupper(trim((string)($loaded['environment'] ?? 'UNKNOWN')));
-    $config = $loaded;
+
+    $path = dirname(__DIR__, 2) . '/env-config/database.php';
+    if (!is_file($path) || !is_readable($path)) {
+        throw new RuntimeException('Missing or unreadable /env-config/database.php');
+    }
+
+    $loaded = require $path;
+    if (!is_array($loaded)) {
+        throw new RuntimeException('Invalid /env-config/database.php: expected array.');
+    }
+
+    $config = [
+        'environment' => strtoupper(trim((string)($loaded['environment'] ?? 'UNKNOWN'))),
+        'db_host' => (string)($loaded['host'] ?? ''),
+        'db_port' => (int)($loaded['port'] ?? 3306),
+        'db_name' => (string)($loaded['database'] ?? ''),
+        'db_user' => (string)($loaded['username'] ?? ''),
+        'db_password' => (string)($loaded['password'] ?? ''),
+        'db_charset' => (string)($loaded['charset'] ?? 'utf8mb4'),
+    ];
+
+    if ($config['db_host'] === '' || $config['db_name'] === '' || $config['db_user'] === '') {
+        throw new RuntimeException('Incomplete database environment configuration.');
+    }
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $config['db_name'])) {
+        throw new RuntimeException('Invalid database name in environment configuration.');
+    }
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $config['db_charset'])) {
+        throw new RuntimeException('Invalid database charset in environment configuration.');
+    }
+
     return $config;
 }
 
 function dispatcher_pdo(): PDO
 {
-    static $pdo;
-    if ($pdo instanceof PDO) return $pdo;
-    $c = dispatcher_bootstrap_config();
-    $dsn = 'mysql:host=' . $c['host'] . ';dbname=' . $c['database'] . ';charset=utf8mb4';
-    $pdo = new PDO($dsn, $c['username'], $c['password'], [
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $cfg = dispatcher_bootstrap_config();
+    $dsn = 'mysql:host=' . $cfg['db_host']
+        . ';port=' . $cfg['db_port']
+        . ';dbname=' . $cfg['db_name']
+        . ';charset=' . $cfg['db_charset'];
+
+    $pdo = new PDO($dsn, $cfg['db_user'], $cfg['db_password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+
     return $pdo;
 }
 
-function dispatcher_setting(string $key, ?string $default = null): ?string
+function dispatcher_initialize_database(): array
 {
-    $stmt = dispatcher_pdo()->prepare('SELECT setting_value FROM dispatcher_settings WHERE setting_key=?');
-    $stmt->execute([$key]);
-    $row = $stmt->fetch();
-    return $row ? (string)$row['setting_value'] : $default;
+    $pdo = dispatcher_pdo();
+    $notes = [];
+
+    $schema = [
+        "CREATE TABLE IF NOT EXISTS dispatcher_settings (
+            setting_key VARCHAR(100) PRIMARY KEY,
+            setting_value LONGTEXT NULL,
+            is_secret TINYINT(1) NOT NULL DEFAULT 0,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS dispatcher_jobs (
+            id CHAR(36) PRIMARY KEY,
+            source VARCHAR(100) NOT NULL,
+            job_type VARCHAR(100) NOT NULL,
+            provider VARCHAR(50) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'queued',
+            payload_json LONGTEXT NOT NULL,
+            result_json LONGTEXT NULL,
+            error_text TEXT NULL,
+            attempts INT NOT NULL DEFAULT 0,
+            available_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            locked_at TIMESTAMP NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_jobs_pick (status, available_at, created_at),
+            INDEX idx_jobs_source (source, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS dispatcher_workorders (
+            wo_id VARCHAR(40) PRIMARY KEY,
+            target VARCHAR(40) NOT NULL,
+            repository VARCHAR(200) NOT NULL,
+            branch_name VARCHAR(200) NOT NULL,
+            wo_path VARCHAR(500) NOT NULL,
+            commit_sha CHAR(40) NOT NULL,
+            authority_repository VARCHAR(200) NOT NULL,
+            authority_branch VARCHAR(200) NOT NULL DEFAULT 'main',
+            authority_path VARCHAR(500) NOT NULL DEFAULT 'ROLE.md',
+            status VARCHAR(30) NOT NULL DEFAULT 'registered',
+            openai_response_id VARCHAR(100) NULL,
+            openai_status VARCHAR(30) NULL,
+            error_text TEXT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_workorders_status (status, updated_at),
+            INDEX idx_workorders_branch (repository, branch_name, updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS dispatcher_cron_runs (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            finished_at TIMESTAMP NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'running',
+            processed_count INT NOT NULL DEFAULT 0,
+            failed_count INT NOT NULL DEFAULT 0,
+            queued_remaining INT NOT NULL DEFAULT 0,
+            message TEXT NULL,
+            INDEX idx_cron_started (started_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+        "CREATE TABLE IF NOT EXISTS dispatcher_log (
+            id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            level VARCHAR(20) NOT NULL,
+            component VARCHAR(50) NOT NULL,
+            message VARCHAR(500) NOT NULL,
+            context_json LONGTEXT NULL,
+            INDEX idx_log_created (created_at),
+            INDEX idx_log_level (level, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+    ];
+
+    foreach ($schema as $sql) {
+        $pdo->exec($sql);
+    }
+    $notes[] = 'dispatcher tables ensured';
+
+    $initialPassword = bin2hex(random_bytes(10));
+    $initialIngest = bin2hex(random_bytes(32));
+    $initialCron = bin2hex(random_bytes(32));
+    $initialWorkerTrigger = bin2hex(random_bytes(32));
+
+    $defaults = [
+        'admin_user' => ['admin', 0],
+        'admin_password_hash' => [password_hash($initialPassword, PASSWORD_DEFAULT), 1],
+        'ingest_token' => [$initialIngest, 1],
+        'cron_token' => [$initialCron, 1],
+        'worker_trigger_token' => [$initialWorkerTrigger, 1],
+        'openai_api_key' => ['', 1],
+        'openai_base_url' => ['https://api.openai.com/v1', 0],
+        'default_provider' => ['openai', 0],
+        'default_model' => ['', 0],
+        'max_jobs_per_cron' => ['5', 0],
+        'max_retries' => ['2', 0],
+        'retry_delay_seconds' => ['60', 0],
+        'cron_enabled' => ['1', 0],
+    ];
+
+    $stmt = $pdo->prepare('INSERT IGNORE INTO dispatcher_settings (setting_key, setting_value, is_secret) VALUES (?, ?, ?)');
+    foreach ($defaults as $key => [$value, $secret]) {
+        $stmt->execute([$key, $value, $secret]);
+        if ($stmt->rowCount() === 1) {
+            if ($key === 'admin_password_hash') $notes[] = 'INITIAL admin password: ' . $initialPassword;
+            if ($key === 'ingest_token') $notes[] = 'INITIAL ingest token: ' . $initialIngest;
+            if ($key === 'cron_token') $notes[] = 'INITIAL cron token: ' . $initialCron;
+            if ($key === 'worker_trigger_token') $notes[] = 'INITIAL worker trigger token: ' . $initialWorkerTrigger;
+        }
+    }
+
+    $notes[] = 'missing settings seeded; existing settings unchanged';
+    return $notes;
 }
 
-function dispatcher_set_setting(string $key, string $value): void
+function dispatcher_settings(): array
 {
-    $stmt = dispatcher_pdo()->prepare('INSERT INTO dispatcher_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)');
-    $stmt->execute([$key, $value]);
+    static $settings = null;
+    if ($settings !== null) return $settings;
+
+    $rows = dispatcher_pdo()->query('SELECT setting_key, setting_value FROM dispatcher_settings')->fetchAll();
+    $settings = [];
+    foreach ($rows as $row) {
+        $settings[$row['setting_key']] = (string)($row['setting_value'] ?? '');
+    }
+    return $settings;
 }
 
-function dispatcher_json(array $payload, int $status = 200): never
+function dispatcher_setting(string $key, mixed $default = ''): mixed
+{
+    $all = dispatcher_settings();
+    return array_key_exists($key, $all) ? $all[$key] : $default;
+}
+
+function dispatcher_save_setting(string $key, string $value): void
+{
+    $stmt = dispatcher_pdo()->prepare('UPDATE dispatcher_settings SET setting_value = ? WHERE setting_key = ?');
+    $stmt->execute([$value, $key]);
+}
+
+function dispatcher_json(array $data, int $status = 200): never
 {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    header('Cache-Control: no-store');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     exit;
+}
+
+function dispatcher_uuid(): string
+{
+    $b = random_bytes(16);
+    $b[6] = chr((ord($b[6]) & 0x0f) | 0x40);
+    $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($b), 4));
+}
+
+function dispatcher_now(): string
+{
+    return gmdate('Y-m-d\TH:i:s\Z');
 }
 
 function dispatcher_authorization_header(): string
 {
     foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $key) {
-        if (!empty($_SERVER[$key])) return trim((string)$_SERVER[$key]);
+        $value = $_SERVER[$key] ?? '';
+        if (is_string($value) && trim($value) !== '') return trim($value);
     }
+
+    $headerSources = [];
     if (function_exists('getallheaders')) {
-        foreach (getallheaders() as $name => $value) {
-            if (strcasecmp((string)$name, 'Authorization') === 0) return trim((string)$value);
+        $headers = getallheaders();
+        if (is_array($headers)) $headerSources[] = $headers;
+    }
+    if (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (is_array($headers)) $headerSources[] = $headers;
+    }
+    foreach ($headerSources as $headers) {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp((string)$name, 'Authorization') === 0 && is_string($value)) return trim($value);
         }
     }
     return '';
@@ -169,63 +347,47 @@ function dispatcher_openai_request(array $job): array
 function dispatcher_runtime_base_url(): string
 {
     $host = trim((string)($_SERVER['HTTP_HOST'] ?? ''));
-    if ($host === '') return '';
+    if ($host === '') {
+        return '';
+    }
+
     $forwardedProto = strtolower(trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
     $https = strtolower(trim((string)($_SERVER['HTTPS'] ?? '')));
     $scheme = ($forwardedProto === 'https' || ($https !== '' && $https !== 'off')) ? 'https' : 'http';
     return $scheme . '://' . $host;
 }
 
-function dispatcher_worker_tools(): array
-{
-    return [
-        ['type'=>'function','name'=>'github_read_file','description'=>'Read a UTF-8 text file from an allowed NEROZON GitHub repository at a specific ref.','strict'=>true,'parameters'=>['type'=>'object','properties'=>['repository'=>['type'=>'string'],'path'=>['type'=>'string'],'ref'=>['type'=>'string']],'required'=>['repository','path','ref'],'additionalProperties'=>false]],
-        ['type'=>'function','name'=>'github_list_path','description'=>'List a directory in an allowed NEROZON GitHub repository at a specific ref.','strict'=>true,'parameters'=>['type'=>'object','properties'=>['repository'=>['type'=>'string'],'path'=>['type'=>'string'],'ref'=>['type'=>'string']],'required'=>['repository','path','ref'],'additionalProperties'=>false]],
-        ['type'=>'function','name'=>'github_write_file','description'=>'Create or update a UTF-8 text file in an allowed NEROZON GitHub repository. For updates provide the current blob SHA as expected_sha; for creates use an empty string.','strict'=>true,'parameters'=>['type'=>'object','properties'=>['repository'=>['type'=>'string'],'path'=>['type'=>'string'],'ref'=>['type'=>'string'],'content'=>['type'=>'string'],'message'=>['type'=>'string'],'expected_sha'=>['type'=>'string']],'required'=>['repository','path','ref','content','message','expected_sha'],'additionalProperties'=>false]],
-        ['type'=>'function','name'=>'github_move_file','description'=>'Move a file inside an allowed NEROZON GitHub repository and branch. Use this for Work Order lifecycle transitions.','strict'=>true,'parameters'=>['type'=>'object','properties'=>['repository'=>['type'=>'string'],'source_path'=>['type'=>'string'],'destination_path'=>['type'=>'string'],'ref'=>['type'=>'string'],'message'=>['type'=>'string'],'expected_sha'=>['type'=>'string']],'required'=>['repository','source_path','destination_path','ref','message','expected_sha'],'additionalProperties'=>false]],
-        ['type'=>'function','name'=>'report_workorder_status','description'=>'Report a Work Order lifecycle status to the Dispatcher after the corresponding Git transition has been committed and pushed. Only in_progress and closed are valid.','strict'=>true,'parameters'=>['type'=>'object','properties'=>['wo_id'=>['type'=>'string'],'status'=>['type'=>'string','enum'=>['in_progress','closed']],'commit'=>['type'=>'string']],'required'=>['wo_id','status','commit'],'additionalProperties'=>false]],
-    ];
-}
-
 function dispatcher_worker_bootstrap_prompt(array $workorder): string
 {
-    $woPath = ltrim((string)$workorder['wo_path'], '/');
-    $inProgressPath = 'workorders/in_progress/' . basename($woPath);
+    $callbackBase = dispatcher_runtime_base_url();
+    $statusUrl = $callbackBase !== '' ? $callbackBase . '/worker-status.php' : '/worker-status.php';
 
     return implode("\n", [
         'You are operating as the ' . $workorder['target'] . ' fundamental role.',
-        'GitHub and Work Order status tools are available in this response and MUST be used for repository access and lifecycle transitions.',
         '',
-        'BOOTSTRAP PROTOCOL — execute in this order before doing implementation work:',
-        '1. Read the Authority entry point using github_read_file:',
-        '   repository: ' . $workorder['authority_repository'],
-        '   ref: ' . $workorder['authority_branch'],
-        '   path: ' . ltrim($workorder['authority_path'], '/'),
-        '2. Follow the Authority mandatory entry points, including WORK-ORDERS.md, using github_read_file as required.',
-        '3. Read the assigned Work Order using github_read_file:',
-        '   repository: ' . $workorder['repository'],
-        '   ref: ' . $workorder['branch_name'],
-        '   path: ' . $woPath,
-        '4. Load the CR and other authoritative sources required to determine that the Work Order can be performed.',
-        '5. If the required Authority or task information cannot be loaded, STOP and do not claim the Work Order.',
-        '6. If the Work Order can be performed, your FIRST repository write MUST be the Work Order claim: move it with github_move_file from:',
-        '   ' . $woPath,
-        '   to:',
-        '   ' . $inProgressPath,
-        '   on ref: ' . $workorder['branch_name'],
-        '7. After the move succeeds, immediately call report_workorder_status with status in_progress and the Git commit SHA returned by the move.',
-        '8. Only after steps 1-7 have succeeded may you make implementation writes.',
+        'Load your Authority first:',
+        $workorder['authority_repository'],
+        $workorder['authority_branch'],
+        '/' . ltrim($workorder['authority_path'], '/'),
         '',
-        'EXECUTION PROTOCOL:',
-        '- Perform the Work Order within the loaded Authority and project truths.',
-        '- Record material decisions/findings in CR History as required by WORK-ORDERS.md.',
-        '- When complete, move the Work Order from in_progress to closed using github_move_file.',
-        '- After that Git move succeeds, immediately call report_workorder_status with status closed and the returned Git commit SHA.',
-        '- A lifecycle transition is not complete until both the Git move and its runtime status report have succeeded.',
-        '- If a required lifecycle operation fails, report/retain the failure explicitly; do not pretend the Work Order completed.',
+        'Your current Work Order is:',
+        $workorder['repository'],
+        $workorder['branch_name'],
+        '/' . ltrim($workorder['wo_path'], '/'),
+        'commit: ' . $workorder['commit_sha'],
         '',
-        'Assigned Work Order id: ' . $workorder['wo_id'],
-        'Assigned Work Order commit at registration: ' . $workorder['commit_sha'],
+        'Load these sources and continue according to the loaded Authority, Work Order, CR, and other authoritative truths.',
+        'Do not claim the Work Order until the information and Authority required to perform it are accessible.',
+        '',
+        'Runtime Work Order status callback:',
+        'POST ' . $statusUrl,
+        'Content-Type: application/json',
+        'Report only after the corresponding Git lifecycle transition has been committed and pushed.',
+        'When the Work Order has been moved from queued to in_progress, send:',
+        '{"wo_id":"' . $workorder['wo_id'] . '","status":"in_progress","commit":"<git commit sha>"}',
+        'When the Work Order has been moved from in_progress to closed, send:',
+        '{"wo_id":"' . $workorder['wo_id'] . '","status":"closed","commit":"<git commit sha>"}',
+        'The commit field may be omitted only if the current commit SHA is not available.',
     ]);
 }
 
@@ -237,7 +399,6 @@ function dispatcher_start_worker(array $workorder): array
     $body = [
         'model' => $model,
         'input' => dispatcher_worker_bootstrap_prompt($workorder),
-        'tools' => dispatcher_worker_tools(),
         'background' => true,
         'store' => true,
         'metadata' => [
@@ -253,5 +414,9 @@ function dispatcher_start_worker(array $workorder): array
     $responseId = trim((string)($response['id'] ?? ''));
     if ($responseId === '') throw new RuntimeException('OpenAI background response has no id.');
 
-    return ['response_id'=>$responseId,'response_status'=>(string)($response['status'] ?? 'unknown'),'http_status'=>$result['http_status']];
+    return [
+        'response_id' => $responseId,
+        'response_status' => (string)($response['status'] ?? 'unknown'),
+        'http_status' => $result['http_status'],
+    ];
 }
