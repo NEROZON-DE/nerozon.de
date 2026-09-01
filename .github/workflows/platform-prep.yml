@@ -54,6 +54,7 @@ jobs:
       - name: Smoke test GitHub adapter
         run: |
           curl --fail --silent --show-error --max-time 15 \
+            --retry 6 --retry-all-errors --retry-delay 3 \
             'https://github-prep.nerozon.de/'
 
       - name: Prepare Dispatcher package
@@ -88,6 +89,7 @@ jobs:
       - name: Smoke test Dispatcher
         run: |
           curl --fail --silent --show-error --max-time 15 \
+            --retry 6 --retry-all-errors --retry-delay 3 \
             'https://dispatcher-prep.nerozon.de/status.php'
 
       - name: Prepare one-time adapter integration self-test
@@ -240,6 +242,7 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="$(curl --fail --silent --show-error --max-time 60 \
+            --retry 4 --retry-all-errors --retry-delay 3 \
             "https://dispatcher-prep.nerozon.de/__adapter-selftest.php?key=${SELFTEST_KEY}")"
           echo "$RESULT"
           echo "$RESULT" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("ok") is True; assert all(d.get(k) is True for k in ["dispatcher_to_adapter_auth","authority_read","nerozon_write","nerozon_move","post_move_read"])'
