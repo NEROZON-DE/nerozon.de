@@ -31,10 +31,20 @@ try {
     $pdo->prepare('UPDATE dispatcher_workorders SET openai_status=? WHERE wo_id=?')->execute([$openaiStatus, $woId]);
 
     $functionCalls = [];
+    $functionCallDiagnostics = [];
     foreach (($response['output'] ?? []) as $item) {
-        if (is_array($item) && ($item['type'] ?? '') === 'function_call') {
-            $functionCalls[] = $item;
+        if (!is_array($item) || ($item['type'] ?? '') !== 'function_call') continue;
+        $functionCalls[] = $item;
+        $args = json_decode((string)($item['arguments'] ?? '{}'), true);
+        if (!is_array($args)) $args = ['_invalid_arguments' => true];
+        if (array_key_exists('content', $args)) {
+            $args['content'] = '[content omitted; ' . strlen((string)$args['content']) . ' bytes]';
         }
+        $functionCallDiagnostics[] = [
+            'name' => (string)($item['name'] ?? ''),
+            'call_id' => (string)($item['call_id'] ?? ''),
+            'arguments' => $args,
+        ];
     }
 
     dispatcher_log('info', 'Worker response reconciled', [
@@ -42,14 +52,15 @@ try {
         'response_id' => $responseId,
         'openai_status' => $openaiStatus,
         'function_calls' => count($functionCalls),
+        'function_call_names' => array_column($functionCallDiagnostics, 'name'),
     ], 'worker');
 
     if (in_array($openaiStatus, ['queued', 'in_progress'], true)) {
-        dispatcher_json(['ok' => true, 'wo' => $woId, 'action' => 'wait', 'response_id' => $responseId, 'openai_status' => $openaiStatus]);
+        dispatcher_json(['ok' => true, 'wo' => $woId, 'action' => 'wait', 'response_id' => $responseId, 'openai_status' => $openaiStatus, 'function_calls' => $functionCallDiagnostics]);
     }
 
     if (in_array($openaiStatus, ['failed', 'cancelled', 'incomplete'], true)) {
-        dispatcher_json(['ok' => false, 'wo' => $woId, 'action' => 'terminal_failure', 'response_id' => $responseId, 'openai_status' => $openaiStatus, 'error' => $response['error'] ?? $response['incomplete_details'] ?? null], 409);
+        dispatcher_json(['ok' => false, 'wo' => $woId, 'action' => 'terminal_failure', 'response_id' => $responseId, 'openai_status' => $openaiStatus, 'error' => $response['error'] ?? $response['incomplete_details'] ?? null, 'function_calls' => $functionCallDiagnostics], 409);
     }
 
     if ($openaiStatus === 'completed' && $functionCalls === []) {
@@ -71,6 +82,7 @@ try {
             'openai_status' => $openaiStatus,
             'workorder_status' => (string)$workorder['status'],
             'wo_path' => (string)$workorder['wo_path'],
+            'function_calls' => [],
         ], 409);
     }
 
@@ -84,6 +96,7 @@ try {
         'response_id' => $continuation['response_id'],
         'openai_status' => $continuation['response_status'],
         'tool_calls_processed' => $continuation['tool_calls_processed'],
+        'function_call_names' => array_column($functionCallDiagnostics, 'name'),
     ], 'worker');
 
     dispatcher_json([
@@ -94,6 +107,7 @@ try {
         'response_id' => $continuation['response_id'],
         'openai_status' => $continuation['response_status'],
         'tool_calls_processed' => $continuation['tool_calls_processed'],
+        'function_calls' => $functionCallDiagnostics,
     ]);
 } catch (Throwable $e) {
     $pdo->prepare('UPDATE dispatcher_workorders SET error_text=? WHERE wo_id=?')->execute([$e->getMessage(), $woId]);
