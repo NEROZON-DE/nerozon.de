@@ -1,5 +1,7 @@
 name: Deploy Platform PREP
 
+# CR-02 boundary verification after PREP application deployment.
+
 on:
   push:
     branches:
