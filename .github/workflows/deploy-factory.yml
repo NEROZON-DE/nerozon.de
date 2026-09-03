@@ -20,14 +20,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Prepare deployment controller
         run: |
           mkdir -p controller
           cp -R deploy/. controller/
           find controller -type d -exec chmod 755 {} \;
           find controller -type f -exec chmod 644 {} \;
-
       - name: Deploy controller
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
@@ -37,17 +35,6 @@ jobs:
           local_path: './controller/*'
           remote_path: '/deploy/'
           sftp_only: true
-
-      - name: Deploy controller .htaccess
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
-        with:
-          username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
-          server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
-          local_path: './controller/.htaccess'
-          remote_path: '/deploy/'
-          sftp_only: true
-
       - name: Create FACTORY deployment token
         id: token
         run: |
@@ -55,7 +42,6 @@ jobs:
           mkdir -p trigger-factory
           touch "trigger-factory/${TOKEN}"
           echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
-
       - name: Upload FACTORY deployment token
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
@@ -65,10 +51,8 @@ jobs:
           local_path: './trigger-factory/*'
           remote_path: '/'
           sftp_only: true
-
       - name: Prepare FACTORY staging
         run: curl --fail --silent --show-error --max-time 30 --request POST "https://deploy-dev1.nerozon.de/index.php?action=prepare&component=factory&token=${{ steps.token.outputs.token }}"
-
       - name: Prepare FACTORY package
         run: |
           mkdir -p package-factory
@@ -77,7 +61,6 @@ jobs:
           find package-factory -type f \( -name 'RULES.md' -o -name '*-RULES.md' -o -name 'SPECS.md' -o -name '*-SPECS.md' \) -delete
           find package-factory -type d -exec chmod 755 {} \;
           find package-factory -type f -exec chmod 644 {} \;
-
       - name: Upload FACTORY staging
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
@@ -87,33 +70,24 @@ jobs:
           local_path: './package-factory/*'
           remote_path: '/factory-deploy/'
           sftp_only: true
-
-      - name: Upload FACTORY protected dotfiles
-        run: |
-          mkdir -p package-factory-dotfiles
-          cp package-factory/.htaccess package-factory-dotfiles/.htaccess
-          cp package-factory/.revision package-factory-dotfiles/.revision
-
       - name: Upload FACTORY .htaccess
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
           username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
           password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
-          local_path: './package-factory-dotfiles/.htaccess'
+          local_path: './package-factory/.htaccess'
           remote_path: '/factory-deploy/'
           sftp_only: true
-
       - name: Upload FACTORY revision
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
           username: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
           password: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
-          local_path: './package-factory-dotfiles/.revision'
+          local_path: './package-factory/.revision'
           remote_path: '/factory-deploy/'
           sftp_only: true
-
       - name: Activate and verify FACTORY
         env:
           TOKEN: ${{ steps.token.outputs.token }}
@@ -122,33 +96,16 @@ jobs:
           DEPLOY_HOST: deploy-dev1.nerozon.de
         run: |
           set -euo pipefail
-          rollback() {
-            curl --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=rollback&component=factory&token=${TOKEN}" || true
-          }
+          rollback(){ curl --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=rollback&component=factory&token=${TOKEN}" || true; }
           trap rollback ERR
           curl --fail --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=deploy&component=factory&token=${TOKEN}"
           HEALTH="$(curl --fail --silent --show-error --max-time 20 "https://${FACTORY_HOST}/health")"
-          STATUS="$(printf '%s' "$HEALTH" | jq -r '.status')"
-          ENVIRONMENT="$(printf '%s' "$HEALTH" | jq -r '.environment')"
-          REVISION="$(printf '%s' "$HEALTH" | jq -r '.revision')"
-          test "$STATUS" = "ok"
-          test "$ENVIRONMENT" = "$EXPECTED_ENV"
-          test "$REVISION" = "$GITHUB_SHA"
+          test "$(printf '%s' "$HEALTH"|jq -r '.status')" = ok
+          test "$(printf '%s' "$HEALTH"|jq -r '.environment')" = "$EXPECTED_ENV"
+          test "$(printf '%s' "$HEALTH"|jq -r '.revision')" = "$GITHUB_SHA"
           HTTP_CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "http://${FACTORY_HOST}/health")"
-          case "$HTTP_CODE" in 301|302|307|308|403) ;; *) exit 1 ;; esac
-          for path in src/bootstrap.php .revision .htaccess; do
-            CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "https://${FACTORY_HOST}/${path}")"
-            case "$CODE" in 403|404) ;; *) exit 1 ;; esac
-          done
+          case "$HTTP_CODE" in 301|302|307|308|403) ;; *) exit 1;; esac
+          for path in src/bootstrap.php .revision .htaccess; do CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "https://${FACTORY_HOST}/${path}")"; case "$CODE" in 403|404) ;; *) exit 1;; esac; done
           curl --fail --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=confirm&component=factory&token=${TOKEN}"
           trap - ERR
-          {
-            echo "### FACTORY deployment evidence"
-            echo "- environment: ${EXPECTED_ENV}"
-            echo "- revision: ${GITHUB_SHA}"
-            echo "- activation: successful"
-            echo "- HTTPS health: successful"
-            echo "- plain HTTP: ${HTTP_CODE} (non-serving)"
-            echo "- internal paths: not exposed"
-            echo "- final outcome: successful"
-          } >> "$GITHUB_STEP_SUMMARY"
+          printf '### FACTORY deployment evidence\n- environment: %s\n- revision: %s\n- activation: successful\n- HTTPS health: successful\n- plain HTTP: %s (non-serving)\n- internal paths: not exposed\n- final outcome: successful\n' "$EXPECTED_ENV" "$GITHUB_SHA" "$HTTP_CODE" >> "$GITHUB_STEP_SUMMARY"
