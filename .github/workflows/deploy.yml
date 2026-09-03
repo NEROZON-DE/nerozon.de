@@ -1,17 +1,18 @@
-name: Deploy nerozon.de
+name: Deploy PREP
 
 on:
   push:
     branches:
-      - main
+      - pre-prod
     paths:
       - 'www/**'
       - 'api/**'
       - 'deploy/**'
       - '.github/workflows/deploy.yml'
+  workflow_dispatch:
 
 concurrency:
-  group: nerozon-production
+  group: nerozon-prep
   cancel-in-progress: false
 
 jobs:
@@ -43,9 +44,9 @@ jobs:
       - name: Deploy controller
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
           local_path: './controller/*'
           remote_path: '/deploy/'
           sftp_only: true
@@ -70,9 +71,9 @@ jobs:
       - name: Upload WWW deployment token
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
           local_path: './trigger-www/*'
           remote_path: '/'
           sftp_only: true
@@ -90,7 +91,7 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/index.php?action=prepare&component=www&token=${{ steps.token_www.outputs.token }}"
+            "https://deploy-prep.nerozon.de/index.php?action=prepare&component=www&token=${{ steps.token_www.outputs.token }}"
 
 
       # ============================================================
@@ -110,9 +111,9 @@ jobs:
       - name: Upload WWW staging
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
           local_path: './package-www/*'
           remote_path: '/www-deploy/'
           sftp_only: true
@@ -130,7 +131,7 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/index.php?action=deploy&component=www&token=${{ steps.token_www.outputs.token }}"
+            "https://deploy-prep.nerozon.de/index.php?action=deploy&component=www&token=${{ steps.token_www.outputs.token }}"
 
 
       # ============================================================
@@ -144,7 +145,7 @@ jobs:
             --silent \
             --show-error \
             --max-time 15 \
-            "https://nerozon.de/" \
+            "https://prep.nerozon.de/" \
             > /dev/null
 
 
@@ -186,9 +187,9 @@ jobs:
         if: steps.check_api.outputs.deploy == 'true'
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
           local_path: './trigger-api/*'
           remote_path: '/'
           sftp_only: true
@@ -207,7 +208,7 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/index.php?action=prepare&component=api&token=${{ steps.token_api.outputs.token }}"
+            "https://deploy-prep.nerozon.de/index.php?action=prepare&component=api&token=${{ steps.token_api.outputs.token }}"
 
 
       # ============================================================
@@ -229,9 +230,9 @@ jobs:
         if: steps.check_api.outputs.deploy == 'true'
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with:
-          username: ${{ secrets.IONOS_SFTP_USER }}
+          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
           server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD }}
+          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
           local_path: './package-api/*'
           remote_path: '/api-deploy/'
           sftp_only: true
@@ -250,4 +251,4 @@ jobs:
             --show-error \
             --max-time 30 \
             --request POST \
-            "https://deploy.nerozon.de/index.php?action=deploy&component=api&token=${{ steps.token_api.outputs.token }}"
+            "https://deploy-prep.nerozon.de/index.php?action=deploy&component=api&token=${{ steps.token_api.outputs.token }}"
