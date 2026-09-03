@@ -92,173 +92,59 @@ jobs:
             --retry 6 --retry-all-errors --retry-delay 3 \
             'https://dispatcher-prep.nerozon.de/status.php'
 
-      - name: Prepare CR-2 database diagnostic
-        id: cr2_diag
+      - name: Verify PREP HTTP and env-config boundary
         shell: bash
         run: |
           set -euo pipefail
-          TOKEN="$(openssl rand -hex 32)"
-          FILE="cr2-db-$(openssl rand -hex 8).php"
-          echo "::add-mask::$TOKEN"
-          mkdir -p cr2-diagnostic
-          cat > "cr2-diagnostic/$FILE" <<'PHP'
-          <?php
-          declare(strict_types=1);
-          header('Content-Type: application/json; charset=utf-8');
-          header('Cache-Control: no-store');
-          register_shutdown_function(static function (): void { @unlink(__FILE__); });
 
-          $expected = '__CR2_TOKEN__';
-          $provided = (string)($_GET['token'] ?? '');
-          if ($provided === '' || !hash_equals($expected, $provided)) {
-              http_response_code(404);
-              exit;
+          check_http_boundary() {
+            local host="$1"
+            local path="$2"
+            local headers
+            local status
+            local location
+            headers="$(mktemp)"
+            status="$(curl --silent --show-error --max-time 15 \
+              --dump-header "$headers" --output /dev/null --write-out '%{http_code}' \
+              "http://${host}${path}")"
+            case "$status" in
+              301|302|307|308)
+                location="$(awk 'BEGIN{IGNORECASE=1} /^Location:/ {sub(/\r$/, "", $2); print $2; exit}' "$headers")"
+                case "$location" in
+                  https://"$host"/*|https://"$host") ;;
+                  *) echo "HTTP boundary invalid redirect for $host: $status" >&2; exit 1 ;;
+                esac
+                ;;
+              400|401|403|404|405|410|421|426)
+                ;;
+              *) echo "HTTP operational content not rejected/redirected for $host: $status" >&2; exit 1 ;;
+            esac
+            rm -f "$headers"
+            echo "$host HTTP boundary: $status"
           }
 
-          $table = 'cr2_wo02_diagnostic';
-          $phase = 'config';
-          $pdo = null;
-          $result = [
-              'ok' => false,
-              'steps' => [
-                  'connect' => false,
-                  'create' => false,
-                  'insert' => false,
-                  'read' => false,
-                  'update' => false,
-                  'delete' => false,
-                  'drop' => false,
-              ],
-              'permission_boundary' => [
-                  'inspected' => false,
-                  'user_admin_or_grant_capability_observed' => null,
-              ],
-              'cleanup' => false,
-          ];
-
-          try {
-              $configPath = dirname(__DIR__) . '/env-config/database.php';
-              $cfg = require $configPath;
-              if (!is_array($cfg)) {
-                  throw new RuntimeException('config');
-              }
-
-              $host = (string)($cfg['host'] ?? '');
-              $port = (int)($cfg['port'] ?? 3306);
-              $database = (string)($cfg['database'] ?? '');
-              $username = (string)($cfg['username'] ?? '');
-              $password = (string)($cfg['password'] ?? '');
-              $charset = (string)($cfg['charset'] ?? 'utf8mb4');
-              if ($host === '' || $database === '' || $username === '') {
-                  throw new RuntimeException('config');
-              }
-
-              $phase = 'connect';
-              $dsn = 'mysql:host=' . $host . ';port=' . $port . ';dbname=' . $database . ';charset=' . $charset;
-              $pdo = new PDO($dsn, $username, $password, [
-                  PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                  PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                  PDO::ATTR_EMULATE_PREPARES => false,
-              ]);
-              $result['steps']['connect'] = true;
-
-              $pdo->exec("DROP TABLE IF EXISTS `$table`");
-
-              $phase = 'create';
-              $pdo->exec("CREATE TABLE `$table` (id INT PRIMARY KEY, value_text VARCHAR(64) NOT NULL) ENGINE=InnoDB");
-              $result['steps']['create'] = true;
-
-              $phase = 'insert';
-              $stmt = $pdo->prepare("INSERT INTO `$table` (id, value_text) VALUES (1, ?)");
-              $stmt->execute(['alpha']);
-              $result['steps']['insert'] = $stmt->rowCount() === 1;
-
-              $phase = 'read';
-              $stmt = $pdo->query("SELECT value_text FROM `$table` WHERE id = 1");
-              $result['steps']['read'] = $stmt->fetchColumn() === 'alpha';
-
-              $phase = 'update';
-              $stmt = $pdo->prepare("UPDATE `$table` SET value_text = ? WHERE id = 1");
-              $stmt->execute(['beta']);
-              $result['steps']['update'] = $stmt->rowCount() === 1;
-
-              $phase = 'delete';
-              $stmt = $pdo->prepare("DELETE FROM `$table` WHERE id = 1");
-              $stmt->execute();
-              $result['steps']['delete'] = $stmt->rowCount() === 1;
-
-              $phase = 'permissions';
-              $grants = $pdo->query('SHOW GRANTS FOR CURRENT_USER()')->fetchAll(PDO::FETCH_COLUMN);
-              $dangerous = false;
-              foreach ($grants as $grant) {
-                  $upper = strtoupper((string)$grant);
-                  if (str_contains($upper, 'WITH GRANT OPTION') || preg_match('/\bCREATE\s+USER\b/', $upper) === 1) {
-                      $dangerous = true;
-                      break;
-                  }
-              }
-              $result['permission_boundary']['inspected'] = true;
-              $result['permission_boundary']['user_admin_or_grant_capability_observed'] = $dangerous;
-
-              $phase = 'drop';
-              $pdo->exec("DROP TABLE `$table`");
-              $result['steps']['drop'] = true;
-              $result['cleanup'] = true;
-
-              $allSteps = !in_array(false, $result['steps'], true);
-              $result['ok'] = $allSteps && !$dangerous;
-              if (!$result['ok']) {
-                  http_response_code(500);
-              }
-          } catch (Throwable $e) {
-              if ($pdo instanceof PDO) {
-                  try {
-                      $pdo->exec("DROP TABLE IF EXISTS `$table`");
-                      $result['cleanup'] = true;
-                  } catch (Throwable $ignored) {
-                      $result['cleanup'] = false;
-                  }
-              }
-              $result['failed_phase'] = $phase;
-              http_response_code(500);
+          check_config_boundary() {
+            local host="$1"
+            local status
+            status="$(curl --silent --show-error --max-time 15 \
+              --output /dev/null --write-out '%{http_code}' \
+              "https://${host}/env-config/")"
+            case "$status" in
+              200|206) echo "env-config structurally reachable on $host" >&2; exit 1 ;;
+              *) echo "$host env-config boundary: $status" ;;
+            esac
           }
 
-          echo json_encode($result, JSON_UNESCAPED_SLASHES);
-          PHP
-          sed -i "s/__CR2_TOKEN__/$TOKEN/" "cr2-diagnostic/$FILE"
-          echo "file=$FILE" >> "$GITHUB_OUTPUT"
-          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          check_http_boundary prep.nerozon.de /
+          check_http_boundary api-prep.nerozon.de /
+          check_http_boundary deploy-prep.nerozon.de /
+          check_http_boundary dispatcher-prep.nerozon.de /status.php
+          check_http_boundary factory-prep.nerozon.de /
+          check_http_boundary github-prep.nerozon.de /
 
-      - name: Upload CR-2 database diagnostic
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
-        with:
-          username: ${{ secrets.IONOS_SFTP_USER_PREP }}
-          server: ${{ secrets.IONOS_SFTP_HOST }}
-          password: ${{ secrets.IONOS_SFTP_PASSWORD_PREP }}
-          local_path: './cr2-diagnostic/*'
-          remote_path: '/dispatcher/'
-          sftp_only: true
-
-      - name: Run CR-2 database diagnostic
-        shell: bash
-        run: |
-          set -euo pipefail
-          HTTP_STATUS="$(curl --silent --show-error --max-time 30 \
-            --output cr2-diagnostic-result.json \
-            --write-out '%{http_code}' \
-            "https://dispatcher-prep.nerozon.de/${{ steps.cr2_diag.outputs.file }}?token=${{ steps.cr2_diag.outputs.token }}")"
-          jq -c '{ok,steps,permission_boundary,cleanup,failed_phase}' cr2-diagnostic-result.json
-          test "$HTTP_STATUS" = "200"
-          jq -e '
-            .ok == true and
-            .steps.connect == true and
-            .steps.create == true and
-            .steps.insert == true and
-            .steps.read == true and
-            .steps.update == true and
-            .steps.delete == true and
-            .steps.drop == true and
-            .cleanup == true and
-            .permission_boundary.inspected == true and
-            .permission_boundary.user_admin_or_grant_capability_observed == false
-          ' cr2-diagnostic-result.json > /dev/null
+          check_config_boundary prep.nerozon.de
+          check_config_boundary api-prep.nerozon.de
+          check_config_boundary deploy-prep.nerozon.de
+          check_config_boundary dispatcher-prep.nerozon.de
+          check_config_boundary factory-prep.nerozon.de
+          check_config_boundary github-prep.nerozon.de
