@@ -1,5 +1,0 @@
-<?php
-declare(strict_types=1);
-require dirname(__DIR__).'/bootstrap.php';
-use Nerozon\Config\SecretConfig;use Nerozon\Database\PdoDatabaseConnector;use Nerozon\Questionnaire\{DatabaseQuestionnaireRepository,SubmitQuestionnaire};use Nerozon\Http\HttpConnector;
-try{$root=dirname(__DIR__,2);$config=SecretConfig::load($root.'/config/Secret.php');$http=new HttpConnector(new SubmitQuestionnaire(new DatabaseQuestionnaireRepository(new PdoDatabaseConnector($config['database']))));$path=parse_url($_SERVER['REQUEST_URI']??'/',PHP_URL_PATH)?:'/';if(str_starts_with($path,'/api'))$path=substr($path,4)?:'/';$body=file_get_contents('php://input');if($body===false)$body='';[$status,$headers,$payload]=$http->dispatch($_SERVER['REQUEST_METHOD']??'GET',$path,$_SERVER['CONTENT_TYPE']??'',$body);}catch(Throwable){$status=500;$headers=['Content-Type'=>'application/json'];$payload=['error'=>['code'=>'internal_error','message'=>'Request could not be processed.']];}http_response_code($status);foreach($headers as $k=>$v)header($k.': '.$v);echo json_encode($payload,JSON_UNESCAPED_SLASHES);
