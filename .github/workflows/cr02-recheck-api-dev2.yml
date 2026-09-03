@@ -1,0 +1,37 @@
+name: CR-02 Recheck API DEV2
+
+on:
+  push:
+    branches:
+      - dev2
+    paths:
+      - '.github/workflows/cr02-recheck-api-dev2.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      SFTP_HOST: ${{ secrets.IONOS_SFTP_HOST }}
+      SFTP_USER: ${{ secrets.IONOS_SFTP_USER_DEV2 }}
+      SSHPASS: ${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}
+    steps:
+      - name: Recheck API DEV2 PHP runtime
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+          cat > cr02-recheck.php <<'PHP'
+          <?php
+          header('Content-Type: application/json');
+          echo json_encode([
+              'php_version' => PHP_VERSION,
+              'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? null,
+          ], JSON_UNESCAPED_SLASHES);
+          PHP
+          cleanup() {
+            printf '%s\n' 'rm /api/public/cr02-recheck.php' | sshpass -e sftp -oBatchMode=no -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null "$SFTP_USER@$SFTP_HOST" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          printf '%s\n' 'put cr02-recheck.php /api/public/cr02-recheck.php' | sshpass -e sftp -oBatchMode=no -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null "$SFTP_USER@$SFTP_HOST" >/dev/null
+          curl --fail --silent --show-error --max-time 15 'https://api-dev2.nerozon.de/cr02-recheck.php'
+          echo
