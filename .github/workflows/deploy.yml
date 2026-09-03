@@ -1,5 +1,7 @@
 name: Deploy PREP
 
+# CR-02 PREP environment deployment contract.
+
 on:
   push:
     branches:
