@@ -47,6 +47,9 @@ jobs:
           rollback(){ curl --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=rollback&component=factory&token=${TOKEN}" || true; }
           trap rollback ERR
           curl --fail --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=deploy&component=factory&token=${TOKEN}"
+          INDEX_CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 20 "https://${FACTORY_HOST}/index.php")"
+          echo "FACTORY direct entry HTTP status: ${INDEX_CODE}"
+          test "$INDEX_CODE" = "404"
           HEALTH="$(curl --fail --silent --show-error --max-time 20 "https://${FACTORY_HOST}/health")"
           test "$(printf '%s' "$HEALTH"|jq -r '.status')" = ok; test "$(printf '%s' "$HEALTH"|jq -r '.environment')" = "$EXPECTED_ENV"; test "$(printf '%s' "$HEALTH"|jq -r '.revision')" = "$GITHUB_SHA"
           HTTP_CODE="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 "http://${FACTORY_HOST}/health")"; case "$HTTP_CODE" in 301|302|307|308|403) ;; *) exit 1;; esac
