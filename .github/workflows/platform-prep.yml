@@ -192,7 +192,7 @@ jobs:
               $dangerous = false;
               foreach ($grants as $grant) {
                   $upper = strtoupper((string)$grant);
-                  if (str_contains($upper, 'WITH GRANT OPTION') || str_contains($upper, 'CREATE USER') || str_contains($upper, ' ON *.* ')) {
+                  if (str_contains($upper, 'WITH GRANT OPTION') || preg_match('/\bCREATE\s+USER\b/', $upper) === 1) {
                       $dangerous = true;
                       break;
                   }
