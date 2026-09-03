@@ -243,9 +243,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error --max-time 30 \
-            "https://dispatcher-prep.nerozon.de/${{ steps.cr2_diag.outputs.file }}?token=${{ steps.cr2_diag.outputs.token }}" \
-            > cr2-diagnostic-result.json
+          HTTP_STATUS="$(curl --silent --show-error --max-time 30 \
+            --output cr2-diagnostic-result.json \
+            --write-out '%{http_code}' \
+            "https://dispatcher-prep.nerozon.de/${{ steps.cr2_diag.outputs.file }}?token=${{ steps.cr2_diag.outputs.token }}")"
+          jq -c '{ok,steps,permission_boundary,cleanup,failed_phase}' cr2-diagnostic-result.json
+          test "$HTTP_STATUS" = "200"
           jq -e '
             .ok == true and
             .steps.connect == true and
@@ -259,4 +262,3 @@ jobs:
             .permission_boundary.inspected == true and
             .permission_boundary.user_admin_or_grant_capability_observed == false
           ' cr2-diagnostic-result.json > /dev/null
-          jq -c '{ok,steps,permission_boundary,cleanup}' cr2-diagnostic-result.json
