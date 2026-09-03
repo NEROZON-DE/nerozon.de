@@ -17,9 +17,6 @@ jobs:
       - name: Deploy controller
         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
         with: {username: '${{ secrets.IONOS_SFTP_USER_DEV3 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV3 }}', local_path: './controller/*', remote_path: '/deploy/', sftp_only: true}
-      - name: Deploy controller .htaccess
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
-        with: {username: '${{ secrets.IONOS_SFTP_USER_DEV3 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV3 }}', local_path: './controller/.htaccess', remote_path: '/deploy/', sftp_only: true}
       - name: Create token
         id: token
         run: |
