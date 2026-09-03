@@ -1,7 +1,0 @@
-RewriteEngine On
-RewriteCond %{HTTPS} !=on
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L,NE]
-
-<FilesMatch "(^\.|RULES\.md$|README\.md$)">
-    Require all denied
-</FilesMatch>
