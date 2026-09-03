@@ -13,7 +13,18 @@ $live=$base.'/'.$component; $staging=$base.'/'.$component.'-deploy'; $rollback=$
 function removeTree(string $path): bool { if(!file_exists($path))return true; if(is_link($path)||is_file($path))return unlink($path); $items=scandir($path); if($items===false)return false; foreach($items as $item){if($item==='.'||$item==='..')continue; if(!removeTree($path.DIRECTORY_SEPARATOR.$item))return false;} return rmdir($path); }
 if($action==='prepare'){if(!removeTree($staging)||!mkdir($staging,0755)){http_response_code(500);exit("Prepare failed.\n");}http_response_code(200);exit("NEROZON {$component} prepare successful\n");}
 if($action==='confirm'){if(!removeTree($rollback)||!unlink($tokenFile)){http_response_code(500);exit("Confirmation failed.\n");}http_response_code(200);exit("NEROZON factory deployment confirmed\n");}
-if($action==='rollback'){if(!is_dir($rollback)){http_response_code(409);exit("Rollback unavailable.\n");}if(is_dir($live)&&!removeTree($live)){http_response_code(500);exit("Rollback failed.\n");}if(!rename($rollback,$live)){http_response_code(500);exit("Rollback failed.\n");}@removeTree($staging);@unlink($tokenFile);http_response_code(200);exit("NEROZON factory rollback successful\n");}
+if($action==='rollback'){
+    if(is_dir($rollback)){
+        if(is_dir($live)&&!removeTree($live)){http_response_code(500);exit("Rollback failed.\n");}
+        if(!rename($rollback,$live)){http_response_code(500);exit("Rollback failed.\n");}
+        $message="NEROZON factory rollback restored previous live\n";
+    } else {
+        if(is_dir($live)&&!removeTree($live)){http_response_code(500);exit("Rollback failed.\n");}
+        $message="NEROZON factory rollback removed failed initial live\n";
+    }
+    @removeTree($staging); if(!unlink($tokenFile)){http_response_code(500);exit("Rollback token cleanup failed.\n");}
+    http_response_code(200); exit($message);
+}
 if(!is_dir($staging)||count(array_diff(scandir($staging)?:[],['.','..']))===0){http_response_code(500);exit("Deployment failed: staging unavailable.\n");}
 if(!removeTree($rollback)){http_response_code(500);exit("Deployment failed: rollback cleanup.\n");}
 if(is_dir($live)&&!rename($live,$rollback)){http_response_code(500);exit("Deployment failed: live preservation.\n");}
