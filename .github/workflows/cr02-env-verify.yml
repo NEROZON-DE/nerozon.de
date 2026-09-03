@@ -1,0 +1,58 @@
+name: CR-02 Verify DEV1 Environment
+
+on:
+  push:
+    branches:
+      - dev1
+    paths:
+      - '.github/workflows/cr02-env-verify.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      SFTP_HOST: ${{ secrets.IONOS_SFTP_HOST }}
+      SFTP_USER: ${{ secrets.IONOS_SFTP_USER_DEV1 }}
+      SSHPASS: ${{ secrets.IONOS_SFTP_PASSWORD_DEV1 }}
+    steps:
+      - name: Verify SFTP root and PHP bindings
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq sshpass >/dev/null
+
+          cat > cr02-env-verify.php <<'PHP'
+          <?php
+          header('Content-Type: application/json');
+          echo json_encode([
+              'php_version' => PHP_VERSION,
+              'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? null,
+              'script_filename' => $_SERVER['SCRIPT_FILENAME'] ?? null,
+          ], JSON_UNESCAPED_SLASHES);
+          PHP
+
+          cleanup() {
+            printf '%s\n' \
+              'rm /www/cr02-env-verify.php' \
+              'rm /api/public/cr02-env-verify.php' \
+              'rm /deploy/cr02-env-verify.php' \
+              | sshpass -e sftp -oBatchMode=no -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null "$SFTP_USER@$SFTP_HOST" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          printf '%s\n' \
+            'pwd' \
+            'put cr02-env-verify.php /www/cr02-env-verify.php' \
+            'put cr02-env-verify.php /api/public/cr02-env-verify.php' \
+            'put cr02-env-verify.php /deploy/cr02-env-verify.php' \
+            | sshpass -e sftp -oBatchMode=no -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null "$SFTP_USER@$SFTP_HOST"
+
+          echo 'WWW:'
+          curl --fail --silent --show-error --max-time 15 'https://dev1.nerozon.de/cr02-env-verify.php'
+          echo
+          echo 'API:'
+          curl --fail --silent --show-error --max-time 15 'https://api-dev1.nerozon.de/cr02-env-verify.php'
+          echo
+          echo 'DEPLOY:'
+          curl --fail --silent --show-error --max-time 15 'https://deploy-dev1.nerozon.de/cr02-env-verify.php'
+          echo
