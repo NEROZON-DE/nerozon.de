@@ -1,12 +1,19 @@
+DirectoryIndex index.php
 Options -Indexes
+
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=308,L]
-RewriteRule (^|/)\. - [F,L]
-RewriteRule ^src(?:/|$) - [F,L]
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^ index.php [L,QSA]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L,NE]
 
-<FilesMatch "^(?!index\.php$).+\.php$">
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+<FilesMatch "(^\.|^bootstrap\.php$)">
     Require all denied
 </FilesMatch>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>
