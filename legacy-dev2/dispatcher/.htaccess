@@ -1,0 +1,15 @@
+DirectoryIndex index.php
+Options -Indexes
+
+# IONOS CGI/FastCGI does not expose Authorization to PHP directly.
+# SetEnvIf preserves it as REDIRECT_HTTP_AUTHORIZATION, which bootstrap.php reads.
+SetEnvIf Authorization "^(.*)$" HTTP_AUTHORIZATION=$1
+
+<FilesMatch "(^\.|RULES\.md$|README\.md$)">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>

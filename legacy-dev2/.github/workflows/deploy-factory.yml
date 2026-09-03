@@ -1,0 +1,55 @@
+name: Deploy FACTORY DEV2
+
+on:
+  push:
+    branches: [dev2]
+    paths: ['factory/**','deploy/**','.github/workflows/deploy-factory.yml']
+  workflow_dispatch:
+concurrency:
+  group: nerozon-factory-dev2
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare deployment controller
+        run: |
+          mkdir -p controller; cp -R deploy/. controller/
+          find controller -type d -exec chmod 755 {} \;; find controller -type f -exec chmod 644 {} \;
+      - name: Deploy controller
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with: {username: '${{ secrets.IONOS_SFTP_USER_DEV2 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}', local_path: './controller/*', remote_path: '/deploy/', sftp_only: true}
+      - name: Create token
+        id: token
+        run: |
+          TOKEN="dpl-$(date +%s%3N)-$(openssl rand -hex 16)"; mkdir -p trigger-factory; touch "trigger-factory/${TOKEN}"; echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+      - name: Upload token
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with: {username: '${{ secrets.IONOS_SFTP_USER_DEV2 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}', local_path: './trigger-factory/*', remote_path: '/', sftp_only: true}
+      - name: Prepare staging
+        run: curl --fail --silent --show-error --max-time 30 --request POST "https://deploy-dev2.nerozon.de/index.php?action=prepare&component=factory&token=${{ steps.token.outputs.token }}"
+      - name: Prepare package
+        run: |
+          mkdir -p package-factory; cp -R factory/. package-factory/; printf '%s\n' "$GITHUB_SHA" > package-factory/.revision
+          find package-factory -type f \( -name 'RULES.md' -o -name '*-RULES.md' -o -name 'SPECS.md' -o -name '*-SPECS.md' \) -delete
+          find package-factory -type d -exec chmod 755 {} \;; find package-factory -type f -exec chmod 644 {} \;
+      - name: Upload staging
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with: {username: '${{ secrets.IONOS_SFTP_USER_DEV2 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}', local_path: './package-factory/*', remote_path: '/factory-deploy/', sftp_only: true}
+      - name: Upload .htaccess
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with: {username: '${{ secrets.IONOS_SFTP_USER_DEV2 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}', local_path: './package-factory/.htaccess', remote_path: '/factory-deploy/', sftp_only: true}
+      - name: Upload revision
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+        with: {username: '${{ secrets.IONOS_SFTP_USER_DEV2 }}', server: '${{ secrets.IONOS_SFTP_HOST }}', password: '${{ secrets.IONOS_SFTP_PASSWORD_DEV2 }}', local_path: './package-factory/.revision', remote_path: '/factory-deploy/', sftp_only: true}
+      - name: Activate and verify
+        env: {TOKEN: '${{ steps.token.outputs.token }}', EXPECTED_ENV: DEV2, DEPLOY_HOST: deploy-dev2.nerozon.de}
+        run: |
+          set -euo pipefail
+          rollback(){ curl --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=rollback&component=factory&token=${TOKEN}" || true; }
+          trap rollback ERR
+          curl --fail --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=deploy&component=factory&token=${TOKEN}"
+          curl --fail --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=verify&component=factory&token=${TOKEN}&expected_environment=${EXPECTED_ENV}&expected_revision=${GITHUB_SHA}"
+          curl --fail --silent --show-error --max-time 30 --request POST "https://${DEPLOY_HOST}/index.php?action=confirm&component=factory&token=${TOKEN}"; trap - ERR
+          printf '### FACTORY deployment evidence\n- environment: %s\n- revision: %s\n- activation: successful\n- non-public application verification: successful\n- verified runtime state: environment and immutable revision matched\n- final outcome: successful\n' "$EXPECTED_ENV" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
