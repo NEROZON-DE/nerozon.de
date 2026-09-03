@@ -1,0 +1,13 @@
+Options -Indexes
+
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L,NE]
+
+<IfModule mod_setenvif.c>
+  SetEnvIf Authorization "^(.*)$" HTTP_AUTHORIZATION=$1
+</IfModule>
+
+<FilesMatch "^(RULES|README)\.md$">
+  Require all denied
+</FilesMatch>

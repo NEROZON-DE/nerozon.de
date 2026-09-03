@@ -1,0 +1,58 @@
+name: Worker Reconcile PREP
+
+on:
+  push:
+    branches:
+      - pre-prod
+    paths:
+      - '.github/workflows/worker-reconcile-prep.yml'
+  workflow_dispatch:
+
+# Controlled E2E probe: WO-20260901160300
+jobs:
+  reconcile-bounded:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile worker until terminal or closed
+        run: |
+          set -euo pipefail
+          WO='WO-20260901160300'
+          for turn in $(seq 1 12); do
+            echo "===== TURN ${turn} ====="
+            body=$(mktemp)
+            status=$(curl --silent --show-error --max-time 45 \
+              --output "$body" --write-out '%{http_code}' \
+              "https://dispatcher-prep.nerozon.de/worker-reconcile.php?wo=${WO}&prep_e2e=1")
+            cat "$body"
+            echo
+            echo "HTTP_STATUS:${status}"
+
+            closed=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/NEROZON-DE/nerozon.de/contents/workorders/closed/${WO}.md?ref=dev1")
+            if [ "$closed" = '200' ]; then
+              echo 'WORKORDER_CLOSED'
+              exit 0
+            fi
+
+            if [ "$status" = '409' ]; then
+              echo 'WORKER_TERMINAL_WITHOUT_CLOSE'
+              exit 0
+            fi
+
+            sleep 5
+          done
+          echo 'BOUNDED_RECONCILIATION_LIMIT_REACHED'
+
+      - name: Inspect final Git Work Order lifecycle paths
+        run: |
+          set -euo pipefail
+          WO='WO-20260901160300'
+          for state in queued in_progress closed; do
+            code=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/NEROZON-DE/nerozon.de/contents/workorders/${state}/${WO}.md?ref=dev1")
+            echo "${state}: ${code}"
+          done

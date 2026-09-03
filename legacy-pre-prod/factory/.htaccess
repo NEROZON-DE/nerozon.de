@@ -5,11 +5,7 @@ RewriteEngine On
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L,NE]
 
-# IONOS CGI/FastCGI does not expose Authorization to PHP directly.
-# SetEnvIf preserves it as REDIRECT_HTTP_AUTHORIZATION, which bootstrap.php reads.
-SetEnvIf Authorization "^(.*)$" HTTP_AUTHORIZATION=$1
-
-<FilesMatch "(^\.|RULES\.md$|README\.md$)">
+<FilesMatch "(^\.|^bootstrap\.php$)">
     Require all denied
 </FilesMatch>
 
