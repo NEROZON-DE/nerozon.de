@@ -46,13 +46,8 @@ function request_from_questionnaire(): bool
         && str_starts_with((string) ($parts['path'] ?? ''), '/q/');
 }
 
-function require_same_origin_post(): void
+function require_same_origin(): void
 {
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    if (!is_string($origin) || !hash_equals(NEROZON_ORIGIN, $origin)) {
-        respond(403, ['ok' => false, 'error' => 'origin_rejected']);
-    }
-
     if (!request_from_questionnaire()) {
         respond(403, ['ok' => false, 'error' => 'source_rejected']);
     }
@@ -63,38 +58,56 @@ function require_same_origin_post(): void
     }
 }
 
-function issue_token(): never
+function require_same_origin_post(): void
 {
-    if (!request_from_questionnaire()) {
-        respond(403, ['ok' => false, 'error' => 'source_rejected']);
-    }
+    require_same_origin();
 
-    $token = bin2hex(random_bytes(32));
-    $_SESSION['mail_token'] = $token;
-    $_SESSION['mail_token_expires'] = time() + NEROZON_TOKEN_TTL;
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    if (!is_string($origin) || !hash_equals(NEROZON_ORIGIN, $origin)) {
+        respond(403, ['ok' => false, 'error' => 'origin_rejected']);
+    }
+}
+
+function issue_tokens(): never
+{
+    require_same_origin();
+
+    $now = time();
+    $expires = (int) ($_SESSION['mail_tokens_expires'] ?? 0);
+
+    if (!isset($_SESSION['mail_tokens_issued']) || $expires < $now) {
+        $_SESSION['mail_tokens_issued'] = true;
+        $_SESSION['mail_tokens_expires'] = $now + NEROZON_TOKEN_TTL;
+        $_SESSION['mail_token_research'] = bin2hex(random_bytes(32));
+        $_SESSION['mail_token_contact'] = bin2hex(random_bytes(32));
+        $expires = $_SESSION['mail_tokens_expires'];
+    }
 
     respond(200, [
         'ok' => true,
-        'token' => $token,
-        'expiresIn' => NEROZON_TOKEN_TTL,
+        'researchToken' => $_SESSION['mail_token_research'] ?? null,
+        'contactToken' => $_SESSION['mail_token_contact'] ?? null,
+        'expiresIn' => max(0, $expires - $now),
     ]);
 }
 
-function consume_token(): void
+function consume_token(string $kind): void
 {
     $provided = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-    $stored = $_SESSION['mail_token'] ?? '';
-    $expires = (int) ($_SESSION['mail_token_expires'] ?? 0);
-
-    unset($_SESSION['mail_token'], $_SESSION['mail_token_expires']);
+    $key = 'mail_token_' . $kind;
+    $stored = $_SESSION[$key] ?? '';
+    $expires = (int) ($_SESSION['mail_tokens_expires'] ?? 0);
 
     if (!is_string($provided) || !is_string($stored) || $provided === '' || $stored === '') {
-        respond(403, ['ok' => false, 'error' => 'token_missing']);
+        respond(403, ['ok' => false, 'error' => 'token_missing_or_used']);
     }
 
     if ($expires < time() || !hash_equals($stored, $provided)) {
         respond(403, ['ok' => false, 'error' => 'token_invalid']);
     }
+
+    // Consume only the token for this operation. The other token remains valid.
+    unset($_SESSION[$key]);
 }
 
 function read_json_body(): array
@@ -167,19 +180,6 @@ function normalize_answer(mixed $value): string|array|null
     }
 
     respond(422, ['ok' => false, 'error' => 'invalid_answer']);
-}
-
-function enforce_session_rate_limit(string $kind): void
-{
-    $cooldown = $kind === 'research' ? 30 : 10;
-    $key = 'last_mail_' . $kind;
-    $last = (int) ($_SESSION[$key] ?? 0);
-
-    if ($last > 0 && (time() - $last) < $cooldown) {
-        respond(429, ['ok' => false, 'error' => 'rate_limited']);
-    }
-
-    $_SESSION[$key] = time();
 }
 
 function send_plain_mail(string $to, string $subject, string $body, ?string $replyTo = null): void
@@ -347,7 +347,7 @@ function handle_contact(array $data): never
 $method = $_SERVER['REQUEST_METHOD'] ?? '';
 
 if ($method === 'GET' && ($_GET['action'] ?? '') === 'token') {
-    issue_token();
+    issue_tokens();
 }
 
 if ($method !== 'POST') {
@@ -356,7 +356,6 @@ if ($method !== 'POST') {
 }
 
 require_same_origin_post();
-consume_token();
 $data = read_json_body();
 
 if (($data['website'] ?? '') !== '') {
@@ -368,7 +367,7 @@ if (!is_string($kind) || !in_array($kind, ['research', 'contact'], true)) {
     respond(422, ['ok' => false, 'error' => 'invalid_type']);
 }
 
-enforce_session_rate_limit($kind);
+consume_token($kind);
 
 if ($kind === 'research') {
     handle_research($data);
