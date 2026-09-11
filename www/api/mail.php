@@ -106,7 +106,6 @@ function consume_token(string $kind): void
         respond(403, ['ok' => false, 'error' => 'token_invalid']);
     }
 
-    // Consume only the token for this operation. The other token remains valid.
     unset($_SESSION[$key]);
 }
 
@@ -293,6 +292,7 @@ function handle_research(array $data): never
         $markdown[] = '';
     }
 
+    consume_token('research');
     send_plain_mail(
         NEROZON_RESEARCH_TO,
         '[NEROZON Research] Neue 20-Fragen-Antwort',
@@ -334,6 +334,7 @@ function handle_contact(array $data): never
         $message !== '' ? $message : '(keine Nachricht angegeben)',
     ]);
 
+    consume_token('contact');
     send_plain_mail(
         NEROZON_CONTACT_TO,
         '[NEROZON Web] Neue Kontaktanfrage',
@@ -366,8 +367,6 @@ $kind = $data['type'] ?? null;
 if (!is_string($kind) || !in_array($kind, ['research', 'contact'], true)) {
     respond(422, ['ok' => false, 'error' => 'invalid_type']);
 }
-
-consume_token($kind);
 
 if ($kind === 'research') {
     handle_research($data);
