@@ -127,11 +127,69 @@ const chapterObserver=new IntersectionObserver(entries=>{
 document.querySelectorAll('[data-package]').forEach(section=>chapterObserver.observe(section));
 
 const questionnaire=document.querySelector('#questionnaire');
+const contactForm=document.querySelector('#contact-form');
 const timeDialog=document.querySelector('#time-dialog');
 const startQuestionnaire=document.querySelector('#start-questionnaire');
+const submitState=document.querySelector('#submit-state');
+const contactState=document.querySelector('#contact-state');
+const researchSubmitButton=questionnaire.querySelector('button[type="submit"]');
+const contactSubmitButton=contactForm.querySelector('button[type="submit"]');
+const mailTokens={research:null,contact:null};
 let questionnaireTimer=null;
 let questionnaireSubmitted=false;
+let contactSubmitted=false;
 let timeReminderShown=false;
+
+const tokenRequest=fetch('../api/mail.php?action=token',{
+  method:'GET',
+  credentials:'same-origin',
+  cache:'no-store',
+  headers:{'Accept':'application/json'}
+}).then(async response=>{
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok||body.ok!==true)throw new Error(body.error||'token_request_failed');
+  mailTokens.research=typeof body.researchToken==='string'?body.researchToken:null;
+  mailTokens.contact=typeof body.contactToken==='string'?body.contactToken:null;
+  return body;
+}).catch(error=>{
+  console.error('Mail API token initialization failed:',error);
+  submitState.textContent='Die sichere Übermittlung konnte nicht vorbereitet werden. Bitte laden Sie die Seite neu.';
+  throw error;
+});
+
+async function sendMailApi(type,payload){
+  await tokenRequest;
+  const token=mailTokens[type];
+  if(!token)throw new Error('token_missing_or_used');
+
+  const response=await fetch('../api/mail.php',{
+    method:'POST',
+    credentials:'same-origin',
+    cache:'no-store',
+    headers:{
+      'Accept':'application/json',
+      'Content-Type':'application/json',
+      'X-CSRF-Token':token
+    },
+    body:JSON.stringify({...payload,type,website:''})
+  });
+  const body=await response.json().catch(()=>({}));
+  if(!response.ok||body.ok!==true){
+    const error=new Error(body.error||'mail_api_failed');
+    error.status=response.status;
+    throw error;
+  }
+  mailTokens[type]=null;
+  return body;
+}
+
+function transmissionErrorMessage(error){
+  if(error?.status===403||error?.message==='token_missing_or_used'||error?.message==='token_invalid'){
+    return 'Die Versandberechtigung ist abgelaufen oder bereits verwendet. Bitte laden Sie die Seite neu.';
+  }
+  if(error?.message==='privacy_consent_required')return 'Bitte bestätigen Sie die Datenschutzerklärung.';
+  return 'Die Übermittlung ist fehlgeschlagen. Bitte versuchen Sie es erneut.';
+}
 
 function startTwoMinuteTimer(){
   if(questionnaireTimer||questionnaireSubmitted||timeReminderShown)return;
@@ -155,33 +213,61 @@ document.querySelector('#time-dialog-submit').addEventListener('click',()=>{
   questionnaire.requestSubmit();
 });
 
-questionnaire.addEventListener('submit',e=>{
+questionnaire.addEventListener('submit',async e=>{
   e.preventDefault();
-  questionnaireSubmitted=true;
+  if(questionnaireSubmitted)return;
+
   if(questionnaireTimer){window.clearTimeout(questionnaireTimer);questionnaireTimer=null;}
   if(timeDialog.open)timeDialog.close();
+
   const data=new FormData(questionnaire);
-  const payload={questionnaireVersion:'research-20-v1',submittedAt:new Date().toISOString(),answers:{}};
+  const payload={questionnaireVersion:'research-20-v1',answers:{}};
   for(const [key,value] of data.entries()){
     const clean=key.replace('[]','');
     if(payload.answers[clean]===undefined)payload.answers[clean]=value;
     else if(Array.isArray(payload.answers[clean]))payload.answers[clean].push(value);
     else payload.answers[clean]=[payload.answers[clean],value];
   }
-  console.info('Questionnaire payload ready for API:',payload);
-  document.querySelector('#submit-state').textContent='Antworten sind für die Übermittlung vorbereitet. Die API-Anbindung folgt im nächsten Schritt.';
-  const contact=document.querySelector('#contact');contact.hidden=false;
-  setTimeout(()=>contact.scrollIntoView({behavior:'smooth'}),250);
+
+  researchSubmitButton.disabled=true;
+  submitState.textContent='Antworten werden sicher übermittelt …';
+
+  try{
+    await sendMailApi('research',payload);
+    questionnaireSubmitted=true;
+    submitState.textContent='Vielen Dank. Ihre Antworten wurden anonym übermittelt.';
+    const contact=document.querySelector('#contact');
+    contact.hidden=false;
+    window.setTimeout(()=>contact.scrollIntoView({behavior:'smooth'}),250);
+  }catch(error){
+    console.error('Research submission failed:',error);
+    submitState.textContent=transmissionErrorMessage(error);
+    if(error?.status!==403)researchSubmitButton.disabled=false;
+  }
 });
 
-document.querySelector('#contact-form').addEventListener('submit',e=>{
+contactForm.addEventListener('submit',async e=>{
   e.preventDefault();
-  const fd=new FormData(e.currentTarget);
+  if(contactSubmitted)return;
+
+  const fd=new FormData(contactForm);
   const message=(fd.get('message')||'').trim();
   const email=(fd.get('email')||'').trim();
   const privacyConsent=fd.get('privacy_consent')==='accepted';
-  if(!message&&!email){document.querySelector('#contact-state').textContent='Sie können das Formular auch einfach leer lassen.';return;}
-  if(!privacyConsent){document.querySelector('#contact-state').textContent='Bitte bestätigen Sie die Datenschutzerklärung, bevor Sie die Nachricht senden.';return;}
-  console.info('Independent contact payload ready for API:',{message,email,privacyConsent:true});
-  document.querySelector('#contact-state').textContent='Nachricht ist für die separate Übermittlung vorbereitet. Die API-Anbindung folgt im nächsten Schritt.';
+
+  if(!message&&!email){contactState.textContent='Sie können das Formular auch einfach leer lassen.';return;}
+  if(!privacyConsent){contactState.textContent='Bitte bestätigen Sie die Datenschutzerklärung, bevor Sie die Nachricht senden.';return;}
+
+  contactSubmitButton.disabled=true;
+  contactState.textContent='Nachricht wird übermittelt …';
+
+  try{
+    await sendMailApi('contact',{message,email,privacyConsent:true});
+    contactSubmitted=true;
+    contactState.textContent='Vielen Dank. Ihre Nachricht wurde übermittelt.';
+  }catch(error){
+    console.error('Contact submission failed:',error);
+    contactState.textContent=transmissionErrorMessage(error);
+    if(error?.status!==403)contactSubmitButton.disabled=false;
+  }
 });
