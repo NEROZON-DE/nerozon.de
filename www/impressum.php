@@ -2,14 +2,14 @@
 declare(strict_types=1);
 require_once __DIR__ . '/_legal.php';
 
-$legal = nerozon_legal_data();
-$configured = $legal !== [];
-$organisation = nerozon_legal_value($legal, 'organisation');
-$name = nerozon_legal_value($legal, 'name');
-$street = nerozon_legal_value($legal, 'street');
-$place = nerozon_legal_value($legal, 'place');
-$country = nerozon_legal_value($legal, 'country');
-$email = nerozon_legal_value($legal, 'email');
+$responsible = nerozon_responsible_data();
+$configured = $responsible !== [];
+$organisation = nerozon_legal_value($responsible, 'organisation');
+$name = nerozon_legal_value($responsible, 'name');
+$street = nerozon_legal_value($responsible, 'street');
+$place = nerozon_legal_value($responsible, 'place');
+$country = nerozon_legal_value($responsible, 'country');
+$email = nerozon_legal_value($responsible, 'email');
 ?>
 <!doctype html>
 <html lang="de">
