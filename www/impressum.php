@@ -4,12 +4,12 @@ require_once __DIR__ . '/_legal.php';
 
 $legal = nerozon_legal_data();
 $configured = $legal !== [];
-$name = nerozon_legal_value($legal, 'operator_name');
+$organisation = nerozon_legal_value($legal, 'organisation');
+$name = nerozon_legal_value($legal, 'name');
 $street = nerozon_legal_value($legal, 'street');
-$postalCode = nerozon_legal_value($legal, 'postal_code');
-$city = nerozon_legal_value($legal, 'city');
+$place = nerozon_legal_value($legal, 'place');
+$country = nerozon_legal_value($legal, 'country');
 $email = nerozon_legal_value($legal, 'email');
-$phone = nerozon_legal_value($legal, 'phone');
 ?>
 <!doctype html>
 <html lang="de">
@@ -27,21 +27,25 @@ $phone = nerozon_legal_value($legal, 'phone');
   <h1>Impressum</h1>
 
   <?php if (!$configured): ?>
-    <div class="notice"><strong>Technischer Platzhalter.</strong> Die Impressumsdaten sind auf diesem System noch nicht über das Web-Secret konfiguriert.</div>
+    <div class="notice"><strong>Technischer Hinweis.</strong> Die Impressumsdaten sind auf diesem System noch nicht konfiguriert.</div>
   <?php else: ?>
-    <h2>Anbieter</h2>
+    <h2>Angaben gemäß § 5 DDG</h2>
     <address>
-      <?= nerozon_legal_escape($name) ?><br>
-      <?= nerozon_legal_escape($street) ?><br>
-      <?= nerozon_legal_escape(trim($postalCode . ' ' . $city)) ?>
+      <?php if ($organisation !== ''): ?><?= nerozon_legal_escape($organisation) ?><br><?php endif; ?>
+      <?php if ($name !== ''): ?>Inhaber: <?= nerozon_legal_escape($name) ?><br><?php endif; ?>
+      <?php if ($street !== ''): ?><?= nerozon_legal_escape($street) ?><br><?php endif; ?>
+      <?php if ($place !== ''): ?><?= nerozon_legal_escape($place) ?><br><?php endif; ?>
+      <?php if ($country !== ''): ?><?= nerozon_legal_escape($country) ?><?php endif; ?>
     </address>
 
     <h2>Kontakt</h2>
     <p>
       <?php if ($email !== ''): ?>E-Mail: <a href="mailto:<?= nerozon_legal_escape($email) ?>"><?= nerozon_legal_escape($email) ?></a><?php endif; ?>
-      <?php if ($email !== '' && $phone !== ''): ?><br><?php endif; ?>
-      <?php if ($phone !== ''): ?>Telefon: <?= nerozon_legal_escape($phone) ?><?php endif; ?>
     </p>
+
+    <h2>Hinweis zur Anschrift</h2>
+    <p>Die vorstehende Anschrift wird zur Erfüllung gesetzlicher Informationspflichten und als ladungsfähige Anschrift veröffentlicht.</p>
+    <p>Eine Nutzung der Anschrift für Werbung, Adresshandel, Profilbildung oder sonstige sachfremde kommerzielle Zwecke ist nicht gestattet, soweit hierfür keine gesetzliche Grundlage oder ausdrückliche Einwilligung besteht.</p>
   <?php endif; ?>
 
   <footer>
