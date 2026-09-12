@@ -18,6 +18,17 @@ function nerozon_legal_data(): array
     return is_array($data) ? $data : [];
 }
 
+function nerozon_responsible_data(): array
+{
+    $file = dirname(__DIR__) . '/env-config/responsible.php';
+    if (!is_readable($file)) {
+        return [];
+    }
+
+    $data = require $file;
+    return is_array($data) ? $data : [];
+}
+
 function nerozon_legal_value(array $data, string $key): string
 {
     $value = $data[$key] ?? '';
