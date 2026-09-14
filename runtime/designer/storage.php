@@ -30,55 +30,162 @@ function designer_default_document(): array
 {
     return [
         'version' => 0,
+        'schemaVersion' => 2,
         'updatedAt' => null,
-        'nodes' => [
+        'modules' => [
             [
-                'id' => 'controller',
-                'type' => 'module',
-                'position' => ['x' => 100, 'y' => 150],
-                'data' => [
-                    'label' => 'Controller',
-                    'description' => 'Orchestriert Worker und Laufzeit.',
-                    'status' => 'active',
-                    'phase' => 'Foundation',
-                    'interfaces' => [
-                        ['id' => 'tasks-out', 'name' => 'Tasks', 'direction' => 'out', 'protocol' => 'HTTP'],
-                        ['id' => 'state-in', 'name' => 'State', 'direction' => 'in', 'protocol' => 'JSON'],
-                    ],
+                'id' => 'ui',
+                'name' => 'UI',
+                'description' => 'Interaktion mit dem HUMAN.',
+                'status' => 'active',
+                'components' => [
+                    ['id' => 'ui-actions', 'name' => 'Actions', 'description' => 'Erfasst Benutzeraktionen.'],
+                ],
+                'interfaces' => [
+                    ['id' => 'ui-command-out', 'name' => 'Command', 'direction' => 'out', 'description' => 'Uebergibt Benutzeraktionen intern an den ADAPTER.'],
                 ],
             ],
             [
-                'id' => 'worker',
-                'type' => 'module',
-                'position' => ['x' => 520, 'y' => 170],
-                'data' => [
-                    'label' => 'Worker',
-                    'description' => 'Fuehrt spezialisierte Aufgaben aus.',
-                    'status' => 'planned',
-                    'phase' => 'PoC',
-                    'interfaces' => [
-                        ['id' => 'tasks-in', 'name' => 'Tasks', 'direction' => 'in', 'protocol' => 'HTTP'],
-                        ['id' => 'result-out', 'name' => 'Result', 'direction' => 'out', 'protocol' => 'JSON'],
-                    ],
+                'id' => 'adapter',
+                'name' => 'ADAPTER',
+                'description' => 'Grenze zwischen externem Aufruf/UI und internen Gateway-Modulen.',
+                'status' => 'active',
+                'components' => [
+                    ['id' => 'adapter-normalizer', 'name' => 'Normalizer', 'description' => 'Normalisiert Requests auf interne Commands.'],
+                ],
+                'interfaces' => [
+                    ['id' => 'adapter-command-in', 'name' => 'Command In', 'direction' => 'in', 'description' => 'Nimmt interne UI-Kommandos an.'],
+                    ['id' => 'adapter-deploy-out', 'name' => 'Deploy Command', 'direction' => 'out', 'description' => 'Uebergibt validierte Deploy-Auftraege an DEPLOY.'],
+                ],
+            ],
+            [
+                'id' => 'deploy',
+                'name' => 'DEPLOY',
+                'description' => 'Fuehrt Deployment-Aktionen aus.',
+                'status' => 'planned',
+                'components' => [
+                    ['id' => 'deploy-runner', 'name' => 'Runner', 'description' => 'Fuehrt einen Deployment-Schritt aus.'],
+                ],
+                'interfaces' => [
+                    ['id' => 'deploy-command-in', 'name' => 'Deploy Command', 'direction' => 'in', 'description' => 'Nimmt Deploy-Auftraege an.'],
                 ],
             ],
         ],
-        'edges' => [
+        'connections' => [
             [
-                'id' => 'edge-controller-worker',
-                'source' => 'controller',
-                'sourceHandle' => 'tasks-out',
-                'target' => 'worker',
-                'targetHandle' => 'tasks-in',
-                'label' => 'dispatch',
+                'id' => 'conn-ui-adapter',
+                'source' => ['moduleId' => 'ui', 'interfaceId' => 'ui-command-out'],
+                'target' => ['moduleId' => 'adapter', 'interfaceId' => 'adapter-command-in'],
+                'label' => 'command',
+                'description' => '',
+            ],
+            [
+                'id' => 'conn-adapter-deploy',
+                'source' => ['moduleId' => 'adapter', 'interfaceId' => 'adapter-deploy-out'],
+                'target' => ['moduleId' => 'deploy', 'interfaceId' => 'deploy-command-in'],
+                'label' => 'deploy',
+                'description' => '',
+            ],
+        ],
+        'processes' => [
+            [
+                'id' => 'process-rc-deploy',
+                'name' => 'RC Deployment',
+                'purpose' => 'Ein HUMAN loest ueber die UI ein RC Deployment aus.',
+                'preconditions' => ['RC ist vorbereitet.'],
+                'expectedResult' => 'Der Deployment-Auftrag wurde an DEPLOY uebergeben.',
+                'steps' => [
+                    ['id' => 'step-human', 'name' => 'Deployment anfordern', 'actor' => 'HUMAN', 'moduleId' => null, 'interfaceId' => null, 'targetModuleId' => 'ui', 'targetInterfaceId' => null, 'description' => 'HUMAN startet den Vorgang.'],
+                    ['id' => 'step-ui', 'name' => 'Aktion erfassen', 'actor' => 'MODULE', 'moduleId' => 'ui', 'interfaceId' => 'ui-command-out', 'targetModuleId' => 'adapter', 'targetInterfaceId' => 'adapter-command-in', 'description' => 'UI bildet die Benutzeraktion auf einen Command ab.'],
+                    ['id' => 'step-adapter', 'name' => 'Deploy-Auftrag erzeugen', 'actor' => 'MODULE', 'moduleId' => 'adapter', 'interfaceId' => 'adapter-deploy-out', 'targetModuleId' => 'deploy', 'targetInterfaceId' => 'deploy-command-in', 'description' => 'ADAPTER validiert und transformiert den Request.'],
+                    ['id' => 'step-deploy', 'name' => 'Deployment ausfuehren', 'actor' => 'MODULE', 'moduleId' => 'deploy', 'interfaceId' => null, 'targetModuleId' => null, 'targetInterfaceId' => null, 'description' => 'DEPLOY uebernimmt die technische Ausfuehrung.'],
+                ],
             ],
         ],
         'roadmap' => [
-            ['id' => 'foundation', 'name' => 'Foundation', 'order' => 10],
-            ['id' => 'poc', 'name' => 'PoC', 'order' => 20],
-            ['id' => 'production', 'name' => 'Production', 'order' => 30],
+            ['id' => 'road-ui', 'name' => 'UI PoC', 'start' => '2026-09-15', 'end' => '2026-09-22', 'status' => 'active', 'targetType' => 'module', 'targetId' => 'ui', 'group' => 'Gateway'],
+            ['id' => 'road-adapter', 'name' => 'ADAPTER PoC', 'start' => '2026-09-18', 'end' => '2026-10-02', 'status' => 'active', 'targetType' => 'module', 'targetId' => 'adapter', 'group' => 'Gateway'],
+            ['id' => 'road-deploy', 'name' => 'DEPLOY PoC', 'start' => '2026-09-25', 'end' => '2026-10-10', 'status' => 'planned', 'targetType' => 'module', 'targetId' => 'deploy', 'group' => 'Gateway'],
+            ['id' => 'road-process', 'name' => 'RC Deployment End-to-End', 'start' => '2026-09-20', 'end' => '2026-10-12', 'status' => 'planned', 'targetType' => 'process', 'targetId' => 'process-rc-deploy', 'group' => 'Processes'],
+        ],
+        'views' => [
+            'architecture' => [
+                'positions' => [
+                    'ui' => ['x' => 80, 'y' => 160],
+                    'adapter' => ['x' => 430, 'y' => 160],
+                    'deploy' => ['x' => 790, 'y' => 160],
+                ],
+            ],
+            'processes' => [],
+            'roadmap' => [],
         ],
     ];
+}
+
+function designer_normalize_document(array $data): array
+{
+    if (isset($data['modules']) && isset($data['processes']) && isset($data['connections'])) {
+        $data['schemaVersion'] = 2;
+        $data['views'] = isset($data['views']) && is_array($data['views']) ? $data['views'] : [];
+        return $data;
+    }
+
+    // One-way compatibility migration from the initial PoC schema.
+    if (isset($data['nodes']) && is_array($data['nodes'])) {
+        $modules = [];
+        $positions = [];
+        foreach ($data['nodes'] as $node) {
+            if (!is_array($node)) {
+                continue;
+            }
+            $id = (string)($node['id'] ?? 'module-' . count($modules));
+            $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
+            $modules[] = [
+                'id' => $id,
+                'name' => (string)($nodeData['label'] ?? $id),
+                'description' => (string)($nodeData['description'] ?? ''),
+                'status' => (string)($nodeData['status'] ?? 'planned'),
+                'components' => [],
+                'interfaces' => is_array($nodeData['interfaces'] ?? null) ? $nodeData['interfaces'] : [],
+            ];
+            if (is_array($node['position'] ?? null)) {
+                $positions[$id] = $node['position'];
+            }
+        }
+
+        $connections = [];
+        foreach (($data['edges'] ?? []) as $edge) {
+            if (!is_array($edge)) {
+                continue;
+            }
+            $connections[] = [
+                'id' => (string)($edge['id'] ?? 'conn-' . count($connections)),
+                'source' => [
+                    'moduleId' => (string)($edge['source'] ?? ''),
+                    'interfaceId' => $edge['sourceHandle'] ?? null,
+                ],
+                'target' => [
+                    'moduleId' => (string)($edge['target'] ?? ''),
+                    'interfaceId' => $edge['targetHandle'] ?? null,
+                ],
+                'label' => (string)($edge['label'] ?? ''),
+                'description' => '',
+            ];
+        }
+
+        return [
+            'version' => (int)($data['version'] ?? 0),
+            'schemaVersion' => 2,
+            'updatedAt' => $data['updatedAt'] ?? null,
+            'modules' => $modules,
+            'connections' => $connections,
+            'processes' => [],
+            'roadmap' => [],
+            'views' => ['architecture' => ['positions' => $positions], 'processes' => [], 'roadmap' => []],
+        ];
+    }
+
+    return $data;
 }
 
 function designer_read_document(string $path): array
@@ -94,7 +201,7 @@ function designer_read_document(string $path): array
     if (!is_array($data)) {
         throw new RuntimeException('Designer document is invalid.');
     }
-    return $data;
+    return designer_normalize_document($data);
 }
 
 function designer_validate_document(array $data): void
@@ -102,7 +209,7 @@ function designer_validate_document(array $data): void
     if (!isset($data['version']) || !is_int($data['version']) || $data['version'] < 0) {
         throw new InvalidArgumentException('version must be a non-negative integer.');
     }
-    foreach (['nodes', 'edges', 'roadmap'] as $key) {
+    foreach (['modules', 'connections', 'processes', 'roadmap', 'views'] as $key) {
         if (!isset($data[$key]) || !is_array($data[$key])) {
             throw new InvalidArgumentException($key . ' must be an array.');
         }
