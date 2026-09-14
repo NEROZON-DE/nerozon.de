@@ -6,7 +6,7 @@ const DESIGNER_MAX_BYTES = 2000000;
 
 function designer_paths(): array
 {
-    $base = __DIR__ . '/data';
+    $base = __DIR__ . '/../../../runtime/designer/data';
     return [
         'base' => $base,
         'document' => $base . '/designer.json',
@@ -130,14 +130,11 @@ function designer_normalize_document(array $data): array
         return $data;
     }
 
-    // One-way compatibility migration from the initial PoC schema.
     if (isset($data['nodes']) && is_array($data['nodes'])) {
         $modules = [];
         $positions = [];
         foreach ($data['nodes'] as $node) {
-            if (!is_array($node)) {
-                continue;
-            }
+            if (!is_array($node)) continue;
             $id = (string)($node['id'] ?? 'module-' . count($modules));
             $nodeData = is_array($node['data'] ?? null) ? $node['data'] : [];
             $modules[] = [
@@ -148,26 +145,16 @@ function designer_normalize_document(array $data): array
                 'components' => [],
                 'interfaces' => is_array($nodeData['interfaces'] ?? null) ? $nodeData['interfaces'] : [],
             ];
-            if (is_array($node['position'] ?? null)) {
-                $positions[$id] = $node['position'];
-            }
+            if (is_array($node['position'] ?? null)) $positions[$id] = $node['position'];
         }
 
         $connections = [];
         foreach (($data['edges'] ?? []) as $edge) {
-            if (!is_array($edge)) {
-                continue;
-            }
+            if (!is_array($edge)) continue;
             $connections[] = [
                 'id' => (string)($edge['id'] ?? 'conn-' . count($connections)),
-                'source' => [
-                    'moduleId' => (string)($edge['source'] ?? ''),
-                    'interfaceId' => $edge['sourceHandle'] ?? null,
-                ],
-                'target' => [
-                    'moduleId' => (string)($edge['target'] ?? ''),
-                    'interfaceId' => $edge['targetHandle'] ?? null,
-                ],
+                'source' => ['moduleId' => (string)($edge['source'] ?? ''), 'interfaceId' => $edge['sourceHandle'] ?? null],
+                'target' => ['moduleId' => (string)($edge['target'] ?? ''), 'interfaceId' => $edge['targetHandle'] ?? null],
                 'label' => (string)($edge['label'] ?? ''),
                 'description' => '',
             ];
@@ -190,17 +177,11 @@ function designer_normalize_document(array $data): array
 
 function designer_read_document(string $path): array
 {
-    if (!is_file($path)) {
-        return designer_default_document();
-    }
+    if (!is_file($path)) return designer_default_document();
     $raw = file_get_contents($path);
-    if ($raw === false) {
-        throw new RuntimeException('Could not read designer document.');
-    }
+    if ($raw === false) throw new RuntimeException('Could not read designer document.');
     $data = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-    if (!is_array($data)) {
-        throw new RuntimeException('Designer document is invalid.');
-    }
+    if (!is_array($data)) throw new RuntimeException('Designer document is invalid.');
     return designer_normalize_document($data);
 }
 
@@ -210,9 +191,7 @@ function designer_validate_document(array $data): void
         throw new InvalidArgumentException('version must be a non-negative integer.');
     }
     foreach (['modules', 'connections', 'processes', 'roadmap', 'views'] as $key) {
-        if (!isset($data[$key]) || !is_array($data[$key])) {
-            throw new InvalidArgumentException($key . ' must be an array.');
-        }
+        if (!isset($data[$key]) || !is_array($data[$key])) throw new InvalidArgumentException($key . ' must be an array.');
     }
 }
 
@@ -224,29 +203,19 @@ function designer_json(array $data): string
 function designer_atomic_write(string $path, string $contents): void
 {
     $tmp = tempnam(dirname($path), '.designer-');
-    if ($tmp === false) {
-        throw new RuntimeException('Could not create temporary file.');
-    }
+    if ($tmp === false) throw new RuntimeException('Could not create temporary file.');
     try {
-        if (file_put_contents($tmp, $contents) !== strlen($contents)) {
-            throw new RuntimeException('Could not write complete designer document.');
-        }
+        if (file_put_contents($tmp, $contents) !== strlen($contents)) throw new RuntimeException('Could not write complete designer document.');
         @chmod($tmp, 0660);
-        if (!rename($tmp, $path)) {
-            throw new RuntimeException('Could not replace designer document atomically.');
-        }
+        if (!rename($tmp, $path)) throw new RuntimeException('Could not replace designer document atomically.');
     } finally {
-        if (is_file($tmp)) {
-            @unlink($tmp);
-        }
+        if (is_file($tmp)) @unlink($tmp);
     }
 }
 
 function designer_snapshot_current(array $paths, array $current): void
 {
-    if (!is_file($paths['document'])) {
-        return;
-    }
+    if (!is_file($paths['document'])) return;
     $stamp = gmdate('Ymd\\THis') . 'Z';
     $name = sprintf('%s/%s-v%06d-%s.json', $paths['history'], $stamp, (int)($current['version'] ?? 0), bin2hex(random_bytes(3)));
     designer_atomic_write($name, designer_json($current));
@@ -258,26 +227,18 @@ function designer_prune_history(string $historyDir): void
     $files = glob($historyDir . '/*.json') ?: [];
     usort($files, static fn(string $a, string $b): int => strcmp(basename($b), basename($a)));
     foreach (array_slice($files, DESIGNER_HISTORY_LIMIT) as $oldFile) {
-        if (!@unlink($oldFile)) {
-            throw new RuntimeException('Could not delete old history file: ' . basename($oldFile));
-        }
+        if (!@unlink($oldFile)) throw new RuntimeException('Could not delete old history file: ' . basename($oldFile));
     }
-    if (count(glob($historyDir . '/*.json') ?: []) > DESIGNER_HISTORY_LIMIT) {
-        throw new RuntimeException('History pruning failed.');
-    }
+    if (count(glob($historyDir . '/*.json') ?: []) > DESIGNER_HISTORY_LIMIT) throw new RuntimeException('History pruning failed.');
 }
 
 function designer_with_lock(callable $callback): mixed
 {
     $paths = designer_ensure_storage();
     $handle = fopen($paths['lock'], 'c+');
-    if ($handle === false) {
-        throw new RuntimeException('Could not open designer lock file.');
-    }
+    if ($handle === false) throw new RuntimeException('Could not open designer lock file.');
     try {
-        if (!flock($handle, LOCK_EX)) {
-            throw new RuntimeException('Could not acquire designer lock.');
-        }
+        if (!flock($handle, LOCK_EX)) throw new RuntimeException('Could not acquire designer lock.');
         return $callback($paths);
     } finally {
         flock($handle, LOCK_UN);
