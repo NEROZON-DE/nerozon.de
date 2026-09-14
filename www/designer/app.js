@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'https://
 import {createRoot} from 'https://esm.sh/react-dom@18.3.1/client';
 import {
   ReactFlow, ReactFlowProvider, Background, Controls, MiniMap, Handle, Position,
-  addEdge, useViewport
+  useViewport
 } from 'https://esm.sh/@xyflow/react@12.11.6?deps=react@18.3.1,react-dom@18.3.1';
 
 const h = React.createElement;
@@ -143,7 +143,7 @@ function ProcessesView({doc, setDoc, select, selectedProcessId, setSelectedProce
       name:s.name, actorLabel:s.actor || (s.moduleId ? 'MODULE':'HUMAN'), moduleName:m?.name || (s.moduleId || ''), interfaceName:intf?.name || '', external:!s.moduleId
     }};
   }), [process, moduleMap]);
-  const edges = useMemo(() => nodes.slice(0,-1).map((n,i) => ({id:`flow-${n.id}`, source:n.id, target:nodes[i+1].id, type:'smoothstep'})), [nodes]);
+  const edges = useMemo(() => nodes.slice(0,-1).map((n,i) => ({id:`flow-${n.id}`, source:n.id, sourceHandle:'out', target:nodes[i+1].id, targetHandle:'in', type:'smoothstep'})), [nodes]);
 
   return h('div',{className:'view-with-list'},
     h('aside',{className:'left-list'},
@@ -187,7 +187,7 @@ function RoadmapView({doc, select}) {
   );
 }
 
-function Inspector({doc, setDoc, selection, activeView, selectedProcessId}) {
+function Inspector({doc, setDoc, selection}) {
   const moduleOptions = (doc.modules || []);
   const patchModule = (id, patch) => setDoc(d=>({...d,modules:d.modules.map(m=>m.id===id?{...m,...patch}:m)}));
   const patchProcess = (id, patch) => setDoc(d=>({...d,processes:d.processes.map(p=>p.id===id?{...p,...patch}:p)}));
@@ -219,15 +219,15 @@ function Inspector({doc, setDoc, selection, activeView, selectedProcessId}) {
 
   if (selection.type === 'step') {
     const p=doc.processes.find(x=>x.id===selection.processId); const s=p?.steps.find(x=>x.id===selection.id); if(!p||!s)return null;
-    const patch=(key,val)=>patchProcess(p.id,{steps:p.steps.map(x=>x.id===s.id?{...x,[key]:val}:x)});
+    const patchMany=changes=>patchProcess(p.id,{steps:p.steps.map(x=>x.id===s.id?{...x,...changes}:x)});
     const currentModule=moduleOptions.find(m=>m.id===s.moduleId);
     const targetModule=moduleOptions.find(m=>m.id===s.targetModuleId);
-    return h('div',{className:'panel-body'},h('h2',null,'Process Step'),field('Name',s.name,v=>patch('name',v)),selectField('Actor',s.actor||'MODULE',['HUMAN','MODULE'],v=>patch('actor',v)),
-      optionField('Module',s.moduleId,moduleOptions.map(m=>[m.id,m.name]),v=>{patch('moduleId',v||null);patch('interfaceId',null)}),
-      optionField('Interface',s.interfaceId,(currentModule?.interfaces||[]).map(i=>[i.id,i.name]),v=>patch('interfaceId',v||null)),
-      optionField('Zielmodul',s.targetModuleId,moduleOptions.map(m=>[m.id,m.name]),v=>{patch('targetModuleId',v||null);patch('targetInterfaceId',null)}),
-      optionField('Zielinterface',s.targetInterfaceId,(targetModule?.interfaces||[]).map(i=>[i.id,i.name]),v=>patch('targetInterfaceId',v||null)),
-      area('Beschreibung',s.description,v=>patch('description',v)),h('button',{className:'btn danger',onClick:()=>patchProcess(p.id,{steps:p.steps.filter(x=>x.id!==s.id)})},'Schritt löschen'));
+    return h('div',{className:'panel-body'},h('h2',null,'Process Step'),field('Name',s.name,v=>patchMany({name:v})),selectField('Actor',s.actor||'MODULE',['HUMAN','MODULE'],v=>patchMany({actor:v})),
+      optionField('Module',s.moduleId,moduleOptions.map(m=>[m.id,m.name]),v=>patchMany({moduleId:v||null,interfaceId:null})),
+      optionField('Interface',s.interfaceId,(currentModule?.interfaces||[]).map(i=>[i.id,i.name]),v=>patchMany({interfaceId:v||null})),
+      optionField('Zielmodul',s.targetModuleId,moduleOptions.map(m=>[m.id,m.name]),v=>patchMany({targetModuleId:v||null,targetInterfaceId:null})),
+      optionField('Zielinterface',s.targetInterfaceId,(targetModule?.interfaces||[]).map(i=>[i.id,i.name]),v=>patchMany({targetInterfaceId:v||null})),
+      area('Beschreibung',s.description,v=>patchMany({description:v})),h('button',{className:'btn danger',onClick:()=>patchProcess(p.id,{steps:p.steps.filter(x=>x.id!==s.id)})},'Schritt löschen'));
   }
 
   if (selection.type === 'roadmap') {
@@ -244,10 +244,10 @@ function area(label,value,onChange){return h('div',{className:'field'},h('label'
 function selectField(label,value,options,onChange){return h('div',{className:'field'},h('label',null,label),h('select',{value:value||'',onChange:e=>onChange(e.target.value)},...options.map(v=>h('option',{key:v,value:v},v))));}
 function optionField(label,value,options,onChange){return h('div',{className:'field'},h('label',null,label),h('select',{value:value||'',onChange:e=>onChange(e.target.value)},h('option',{value:''},'—'),...options.map(([v,n])=>h('option',{key:v,value:v},n))));}
 
-function SidePanel({mode, setMode, doc, setDoc, selection, activeView, selectedProcessId, issues}) {
+function SidePanel({mode, setMode, doc, setDoc, selection, issues}) {
   return h('aside',{className:'sidepanel'},
     h('div',{className:'panel-tabs'},...['inspector','json','consistency'].map(x=>h('button',{key:x,className:mode===x?'active':'',onClick:()=>setMode(x)},x==='inspector'?'Inspector':x==='json'?'{} JSON':`Checks ${issues.length}`))),
-    mode==='inspector' ? h(Inspector,{doc,setDoc,selection,activeView,selectedProcessId}) : null,
+    mode==='inspector' ? h(Inspector,{doc,setDoc,selection}) : null,
     mode==='json' ? h('div',{className:'json-panel'},h('button',{className:'btn',onClick:()=>navigator.clipboard?.writeText(JSON.stringify(doc,null,2))},'Copy JSON'),h('pre',null,JSON.stringify(doc,null,2))) : null,
     mode==='consistency' ? h('div',{className:'panel-body'},issues.length?h(React.Fragment,null,...issues.map((i,n)=>h('div',{className:`issue ${i.level}`,key:n},h('strong',null,i.level.toUpperCase()),h('span',null,i.text)))):h('div',{className:'ok-box'},'Keine Inkonsistenzen gefunden.')) : null
   );
@@ -296,7 +296,7 @@ function Designer() {
         activeView==='processes'?h(ProcessesView,{doc,setDoc,select:setSelection,selectedProcessId,setSelectedProcessId}):null,
         activeView==='roadmap'?h(RoadmapView,{doc,select:setSelection}):null
       ),
-      h(SidePanel,{mode:panelMode,setMode:setPanelMode,doc,setDoc,selection,activeView,selectedProcessId,issues})
+      h(SidePanel,{mode:panelMode,setMode:setPanelMode,doc,setDoc,selection,issues})
     )
   );
 }
