@@ -1,0 +1,4 @@
+data/designer.json
+data/designer.lock
+data/history/*.json
+!data/history/.gitkeep
