@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../../runtime/designer/storage.php';
+require_once __DIR__ . '/storage.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
@@ -80,10 +80,16 @@ try {
 
     respond(200, $saved);
 } catch (JsonException $e) {
-    respond(400, ['error' => 'invalid_json']);
+    respond(400, ['error' => 'invalid_json', 'message' => $e->getMessage()]);
 } catch (InvalidArgumentException $e) {
     respond(422, ['error' => 'validation_failed', 'message' => $e->getMessage()]);
 } catch (Throwable $e) {
     error_log('designer API: ' . $e->getMessage());
-    respond(500, ['error' => 'server_error']);
+    respond(500, [
+        'error' => 'server_error',
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString(),
+    ]);
 }
